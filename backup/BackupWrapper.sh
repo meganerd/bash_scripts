@@ -21,7 +21,7 @@ SSH_KEY="/usr/local/lib/mykey.id_rsa"	# this is the path to the rsa/dsa key
 # be sure to not use a trailing '/' as this messes up directory creation for some methods like rsync.
 declare -a  sourcedir=( "/etc" "/usr/local" "/home" )
 
-REMOTE_PATH="$HOST_rdiff"	# path on the remote host to save files to
+REMOTE_PATH="/remote/path"	# path on the remote host to save files to
 					# duplicty creates a lot of files, this is 
 					# recommended to be set.
 
