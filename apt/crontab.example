@@ -1,0 +1,2 @@
+0 0,6,12,18 * * *      /usr/local/bin/update-apt.sh |tee  /var/log/update-apt.log
+
