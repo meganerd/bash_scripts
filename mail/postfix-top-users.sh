@@ -1,10 +1,7 @@
 #!/bin/bash
 NUsers=${1:-15}
 
-ShowUsage()
-{
-printf "This script requires you to provide the number of users you are interested in.  It will default to 15 if no parameter is provided"
-}
+# This script requires you to provide the number of users you are interested in.  It will default to 15 if no parameter is provided.
 
 TopUsers()
 {
