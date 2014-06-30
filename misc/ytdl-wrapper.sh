@@ -23,9 +23,9 @@ echo "Selecting the following quality level."
 echo $bestlevel
 
 # Selecting the numerical quality value that youtube-dl will use to download the video. 
-qualitylevel='$bestlevel |cut -f 1 -d " "'
+qualitylevel=`echo $bestlevel |cut -f 1 -d " "`
 
 echo "Beginning download of video into the following directory: `pwd`"
 
 # Downloading the video into the current directory.
-youtube-dl --default-search auto -f $bestlevel $1 
+echo youtube-dl --default-search auto -f $qualitylevel $1 
