@@ -28,4 +28,4 @@ qualitylevel=`echo $bestlevel |cut -f 1 -d " "`
 echo "Beginning download of video into the following directory: `pwd`"
 
 # Downloading the video into the current directory.
-echo youtube-dl --default-search auto -f $qualitylevel $1 
+youtube-dl --default-search auto -f $qualitylevel $1 
