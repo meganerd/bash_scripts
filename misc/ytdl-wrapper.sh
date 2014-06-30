@@ -17,7 +17,7 @@ which youtube-dl &> /dev/null
 [ $? -ne 0 ]  && echo "youtube-dl utility is not available, please install it" && exit 1
 
 # Grabbing the best available quality level for this video.
-bestlevel=`youtube-dl -F $1 |grep best `
+bestlevel=`youtube-dl --default-search auto -F $1 |grep best `
 
 echo "Selecting the following quality level."
 echo $bestlevel
@@ -28,4 +28,4 @@ qualitylevel='$bestlevel |cut -f 1 -d " "'
 echo "Beginning download of video into the following directory: `pwd`"
 
 # Downloading the video into the current directory.
-youtube-dl -f $bestlevel $1 
+youtube-dl --default-search auto -f $bestlevel $1 
