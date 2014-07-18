@@ -1,5 +1,6 @@
 #!/bin/bash
 # This script checks a text file for a list of IPs (one per line) and puts traffic from those IPs into the specified table.
+# This script was designed to be called by a "post-up" line in a Debian based system (/etc/network/interfaces).
 # You will need a table defined in /etc/iproute2/rt_tables.  See http://lartc.org/lartc.html#LARTC.RPDB.SIMPLE
 # for more details on this.
 
