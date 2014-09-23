@@ -3,21 +3,21 @@
 # if this check fails
 
 # remote host used to test IPv6 connectivity
-remote_host=""
+REMOTE_HOST=""
 
 # name and path for ssh key if using scp to test connectivity
-ssh_key=""
+SSH_KEY=""
 
 # remote_check functions
 CheckNet_TCP ()
 {
    touch ~/null.bin
-   scp -c -i $SSH_KEY ~/null.bin $HOST:$REMOTE_PATH/
+   scp -c -i $SSH_KEY ~/null.bin $REMOTE_HOST:
 }
 
 CheckNet_ICMP ()
 {
-  ping6 -c 1 $HOST  >& /dev/null ; 
+  ping6 -c 1 $REMOTE_HOST  >& /dev/null ; 
 }
  # Check if available via ping or SCP, then transfer archive file if remote location is online.
 if CheckNet_ICMP ; then
