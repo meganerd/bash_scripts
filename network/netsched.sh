@@ -52,4 +52,7 @@ tc qdisc del dev $InterfaceDev ingress
 echo "complete"
 }
 
+SetQueue()
+{
 sudo tc qdisc add dev p35p1 root fq_codel target 3ms interval 40ms limit 2000 flows 20480 noecn quantum 1514
+}
