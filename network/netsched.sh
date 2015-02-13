@@ -1,14 +1,17 @@
 #!/bin/bash
-# Version = Dev_Non_Functional
+# Version = 0.1-alpha
+# Seems to work, not well tested as yet.
 
 ShowUsage()
 {
 printf "This script requires an interface .\n
+-d 	-- Clears all existing queues on a given interface.\n
 -i	-- Interface to use.\n
 -l	-- CoDel limit option (defaults to 300).\n
--f	-- Codel flow count.\n
--s 	-- Max send rate (in kbps).\n
--r 	-- Max receive rate (in kbps).\n
+-f	-- Codel flow count (defaults to 20480).\n
+-v	-- Takes an interface as argument, displays existing queue(s).
+-s 	-- Max send rate (in kbps) [UNUSED].\n
+-r 	-- Max receive rate (in kbps) [UNUSED].\n
 -h	-- Help (this text).\n
 
 For example: netsched.sh -i eth0 -f 20480 -l 600 \n
@@ -18,13 +21,15 @@ For example: netsched.sh -i eth0 -f 20480 -l 600 \n
 # Default variable values
 LimitNum=300
 FlowNum=20480
-InterfaceDev=wlan0
+InterfaceDev=
 
 # Process arguments
-while getopts "i:f:l:s:r:h" opt ; do
+while getopts ":i:d:f:l:v:h" opt ; do
 	case "$opt" in
 
 	  i) iflag=1
+	     InterfaceDev="$OPTARG" ;;
+	  d) dflag=1
 	     InterfaceDev="$OPTARG" ;;
 	  f) fflag=1
 	     FlowNum=$OPTARG ;;
@@ -33,10 +38,14 @@ while getopts "i:f:l:s:r:h" opt ; do
 	  s) sflag=1
 	      SendRate=$OPTARG ;;
 	  r) rflag=1
-	      ReceiveRate=$OPTARG ;;
+	      ReceiveRate=$OPTARG ;;	
+	  v) vflag=1
+	      InterfaceDev=$OPTARG ;;
 	    
 	  h) ShowUsage;;
-	  :) ShowUsage;;
+	  
+	  ?) ShowUsage;;
+	  
 	esac
  
 done
@@ -47,12 +56,32 @@ ClearExistingQueue()
 {
 echo "removing shaping rules:"
 # clean existing down- and uplink qdiscs, hide errors
-tc qdisc del dev $InterfaceDev root
-tc qdisc del dev $InterfaceDev ingress 
+sudo /sbin/tc qdisc del dev $InterfaceDev root 2> /dev/null > /dev/null 
+sudo /sbin/tc qdisc del dev $InterfaceDev ingress 2> /dev/null > /dev/null
 echo "complete"
 }
 
 SetQueue()
 {
-tc qdisc add dev $InterfaceDev root fq_codel target 3ms interval 40ms limit $LimitNum flows $FlowNum noecn quantum 1514
+echo "Setting queue on interface $InterfaceDev, with a limit of $LimitNum packets and $FlowNum flows."
+sudo /sbin/tc qdisc add dev $InterfaceDev root fq_codel target 3ms interval 40ms limit $LimitNum flows $FlowNum noecn quantum 1514
 }
+
+ShowQueue()
+{
+sudo  /sbin/tc -s qdisc ls dev $InterfaceDev
+sudo  /sbin/tc -s class ls dev $InterfaceDev
+}
+
+
+if [[ "$iflag" == "1" ]]  ; then
+    ClearExistingQueue ;
+    SetQueue ;
+ elif [[ "$vflag" == "1" ]] ; then
+    ShowQueue ;
+  elif   [[ "$dflag" == "1" ]] ; then
+    ClearExistingQueue ;
+  else
+    ShowUsage ;
+    exit 1
+    fi
