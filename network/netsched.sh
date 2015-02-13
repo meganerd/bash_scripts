@@ -10,8 +10,8 @@ printf "This script requires an interface .\n
 -l	-- CoDel limit option (defaults to 300).\n
 -f	-- Codel flow count (defaults to 20480).\n
 -v	-- Takes an interface as argument, displays existing queue(s).
--s 	-- Max send rate (in kbps) [UNUSED].\n
--r 	-- Max receive rate (in kbps) [UNUSED].\n
+-I 	-- Should be set on the order of the worst-case  RTT  through  the  bottleneck  to  give endpoints sufficient time to react.\n
+-T 	-- is  the  acceptable  minimum standing/persistent  queue  delay.\n
 -h	-- Help (this text).\n
 
 For example: netsched.sh -i eth0 -f 20480 -l 600 \n
@@ -21,7 +21,10 @@ For example: netsched.sh -i eth0 -f 20480 -l 600 \n
 # Default variable values
 LimitNum=300
 FlowNum=20480
+TargetDelay=10
+IntervalCheck=100
 InterfaceDev=
+TimeUnit="ms"
 
 # Process arguments
 while getopts ":i:d:f:l:v:h" opt ; do
@@ -35,10 +38,10 @@ while getopts ":i:d:f:l:v:h" opt ; do
 	     FlowNum=$OPTARG ;;
 	  l) lflag=1
 	     LimitNum=$OPTARG ;;
-	  s) sflag=1
-	      SendRate=$OPTARG ;;
-	  r) rflag=1
-	      ReceiveRate=$OPTARG ;;	
+	  I) Iflag=1
+	      IntervalCheck=$OPTARG ;;
+	  T) Tflag=1
+	      TargetDelay=$OPTARG ;;	
 	  v) vflag=1
 	      InterfaceDev=$OPTARG ;;
 	    
@@ -63,8 +66,8 @@ echo "complete"
 
 SetQueue()
 {
-echo "Setting queue on interface $InterfaceDev, with a limit of $LimitNum packets and $FlowNum flows."
-sudo /sbin/tc qdisc add dev $InterfaceDev root fq_codel target 3ms interval 40ms limit $LimitNum flows $FlowNum noecn quantum 1514
+echo "Setting queue on interface $InterfaceDev, with a limit of $LimitNum packets, $FlowNum flows, a target of $TargetDelay in $TimeUnit, and an interval of $IntervalCheck in $TimeUnit."
+sudo /sbin/tc qdisc add dev $InterfaceDev root fq_codel target $TargetDelay$TimeUnit interval $IntervalCheck$TimeUnit limit $LimitNum flows $FlowNum noecn quantum 1514
 }
 
 ShowQueue()
