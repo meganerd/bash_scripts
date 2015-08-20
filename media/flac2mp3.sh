@@ -25,7 +25,7 @@ METAFLAC="$(which metaflac)"
 # Path to lame binary
 LAME="$(which lame)"
 # Options to pass to lame during encoding
-LAME_OPTS="--vbr-new -V 4 -h --nohist"
+LAME_OPTS="--vbr-new -V 4 -h --nohist --resample 44100"
 # Multiple instances of this running on the same output-dir will be more
 # reliable with locking available.
 DOTLOCKFILE="$(which dotlockfile)"
@@ -153,7 +153,7 @@ cat "$ERR"
 exit 1
 fi
 # Encode MP3
-$LAME $LAME_OPTS --resample 44100 --tt "$TITLE" --ta "$ARTIST" --tl "$ALBUM" \
+$LAME $LAME_OPTS  --tt "$TITLE" --ta "$ARTIST" --tl "$ALBUM" \
 --tn "$TRACKNUMBER" --tg "$GENRE" --ty "$DATE" \
 --ti "$COVER" \
 "$WAV" "$OUTPUTDIR/$filepath.mp3"

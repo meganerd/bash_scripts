@@ -15,7 +15,7 @@ printf "This script requires an input file name along with the page range to ext
 -i	-- Input filename to extract from.\n
 -h	-- Help (this text).\n
 
-For example: extract-pages.sh -f mypdf.pdf -fp 3 -lp 5\n
+For example: extract-pages.sh -i mypdf.pdf -f 3 -l 5\n
 "
 }
 
