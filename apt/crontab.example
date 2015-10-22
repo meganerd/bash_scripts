@@ -1,2 +1,2 @@
-0 0,6,12,18 * * *      /usr/local/bin/update-apt.sh |tee  /var/log/update-apt.log
-
+0 0,6,12,18 * * *      /usr/local/sbin/update-apt.sh |tee  /var/log/update-apt.log
+30 5 * * *      /usr/local/sbin/reboot-if-required.sh | tee /var/log/reboot-check.log
