@@ -8,8 +8,8 @@ set hls
 set expandtab
 set noai
 set ruler
-colorscheme default
 set bg=dark
+colorscheme default
 set tabstop=2
 set shiftwidth=2
 set smartindent
