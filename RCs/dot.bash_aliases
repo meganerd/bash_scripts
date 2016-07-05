@@ -22,7 +22,7 @@ alias restart-nautilus='kill -HUP `ps axf |grep nautilus |grep -v pts | cut -f2 
 alias logwatch="tail -f /var/log/messages"
 alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t string menu:minimize,maximize,close"
 alias wget-recursive="wget -r --level=5 -nH -N -np"
-export aptitude-search="aptitude --disable-columns search"
+alias aptitude-search="aptitude --disable-columns search"
 
 
 
