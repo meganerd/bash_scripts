@@ -15,12 +15,14 @@ set shiftwidth=2
 set smartindent
 set autoindent
 "set backspace=2
-set colorcolumn=90
 set number
 map <D-A-RIGHT> <C-w>l
 map <D-A-LEFT> <C-w>h
 map <D-A-DOWN> <C-w><C-w>
 map <D-A-UP> <C-w>W
+if version >= 703
+  set colorcolumn=90
+endif
 " PERFORMANCES & HISTORY
 set hidden
 set history=100
