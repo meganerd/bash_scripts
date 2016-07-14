@@ -10,6 +10,7 @@ set noai
 set ruler
 set bg=dark
 colorscheme default
+hi Comment ctermfg=green
 set tabstop=2
 set shiftwidth=2
 set smartindent
