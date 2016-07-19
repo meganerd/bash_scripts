@@ -10,7 +10,8 @@ set noai
 set ruler
 set bg=dark
 colorscheme default
-hi Comment ctermfg=green
+hi Comment ctermfg=34
+hi Comment ctermbg=233
 set tabstop=2
 set shiftwidth=2
 set smartindent
@@ -22,7 +23,8 @@ map <D-A-LEFT> <C-w>h
 map <D-A-DOWN> <C-w><C-w>
 map <D-A-UP> <C-w>W
 if version >= 703
-  set colorcolumn=90
+  let &colorcolumn="80,".join(range(120,999),",")
+  highlight ColorColumn ctermbg=235 guibg=#2c2d27
 endif
 " PERFORMANCES & HISTORY
 set hidden
