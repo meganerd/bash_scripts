@@ -1,6 +1,6 @@
 #! /bin/bash
 TMP_FILE=/tmp/update-apt.txt
-EMAIL=gustin+lan@meganerd.ca
+EMAIL=changeme@domain.tld
 PATH=$PATH:/usr/local/sbin:/usr/sbin:/sbin:/usr/bin
 
 apt-get update -qq
