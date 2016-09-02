@@ -34,3 +34,4 @@ map  :w!<CR>:!aspell check %<CR>:e! %<CR>
 map <F7> :set linebreak <CR> :set display+=lastline <CR> :set wrap <CR> :setlocal spell spelllang=en_gb <CR>
 "F8 WordProcessorOff
 map <F8> :set nowrap <CR> :set nospell <CR> 
+set statusline="%f%m%r%h%w [%Y] [0x%02.2B]%< %F%=%4v,%4l %3p%% of %L"
