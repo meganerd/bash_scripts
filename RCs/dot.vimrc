@@ -35,3 +35,4 @@ map <F7> :set linebreak <CR> :set display+=lastline <CR> :set wrap <CR> :setloca
 "F8 WordProcessorOff
 map <F8> :set nowrap <CR> :set nospell <CR> 
 set statusline="%f%m%r%h%w [%Y] [0x%02.2B]%< %F%=%4v,%4l %3p%% of %L"
+hi Search cterm=NONE ctermfg=grey ctermbg=blue
