@@ -23,8 +23,8 @@ map <D-A-LEFT> <C-w>h
 map <D-A-DOWN> <C-w><C-w>
 map <D-A-UP> <C-w>W
 if version >= 703
-  let &colorcolumn="80,".join(range(120,999),",")
-  highlight ColorColumn ctermbg=235 guibg=#2c2d27
+  let &colorcolumn="80,120"
+  highlight ColorColumn ctermbg=23 guibg=#2c2d27
 endif
 " PERFORMANCES & HISTORY
 set hidden
@@ -34,3 +34,5 @@ map  :w!<CR>:!aspell check %<CR>:e! %<CR>
 map <F7> :set linebreak <CR> :set display+=lastline <CR> :set wrap <CR> :setlocal spell spelllang=en_gb <CR>
 "F8 WordProcessorOff
 map <F8> :set nowrap <CR> :set nospell <CR> 
+set statusline="%f%m%r%h%w [%Y] [0x%02.2B]%< %F%=%4v,%4l %3p%% of %L" 
+set laststatus=2
