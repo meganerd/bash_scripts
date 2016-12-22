@@ -9,8 +9,8 @@ alias l='ls $LS_OPTIONS -lA'
 alias stop="/sbin/shutdown -c"
 # Disabled as the the geektools proxy seems unresponsive
 #alias whois="whois -h whois.geektools.com"
-alias dus="du -Pacmx --max-depth=1 . | sort -g"
-alias sdus="sudo du -Pacmx --max-depth=1 . | sort -g"
+alias dus="du -Pachx --max-depth=1 . | sort -h"
+alias sdus="sudo du -Pachx --max-depth=1 . | sort -h"
 alias apt-upgrade="sudo aptitude update ; sudo aptitude dist-upgrade"
 alias h="history | grep "
 alias rdp="rdesktop -g 1280x800 -P -z -r sound:local -r clipboard:PRIMARYCLIPBOARD"
