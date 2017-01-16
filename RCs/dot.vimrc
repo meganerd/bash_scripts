@@ -12,7 +12,7 @@ set bg=dark
 colorscheme default
 hi Comment ctermfg=34
 hi Comment ctermbg=233
-set tabstop=2
+set tabstop=4
 set shiftwidth=2
 set smartindent
 set autoindent
