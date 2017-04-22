@@ -10,8 +10,8 @@ printf "This script requires an interface .\n
 -l	-- CoDel limit option (defaults to 300).\n
 -f	-- Codel flow count (defaults to 20480).\n
 -v	-- Takes an interface as argument, displays existing queue(s).
--I 	-- Should be set on the order of the worst-case  RTT  through  the  bottleneck  to  give endpoints sufficient time to react.\n
--T 	-- is  the  acceptable  minimum standing/persistent  queue  delay.\n
+-I 	-- Should be set on the order of the worst-case RTT through  the  bottleneck  to  give endpoints sufficient time to react.\n
+-T 	-- is  the  acceptable  minimum standing/persistent queue  delay.\n
 -h	-- Help (this text).\n
 
 For example: netsched.sh -i eth0 -f 20480 -l 600 \n
