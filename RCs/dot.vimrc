@@ -7,7 +7,6 @@ set is
 set hls
 set expandtab
 set noai
-set ruler
 set bg=dark
 colorscheme default
 hi Comment ctermfg=34
@@ -15,9 +14,10 @@ hi Comment ctermbg=233
 set tabstop=4
 set shiftwidth=2
 set smartindent
-set autoindent
+"set autoindent
 "set backspace=2
 set number
+set ruler
 map <D-A-RIGHT> <C-w>l
 map <D-A-LEFT> <C-w>h
 map <D-A-DOWN> <C-w><C-w>
