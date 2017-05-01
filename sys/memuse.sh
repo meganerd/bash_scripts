@@ -40,6 +40,7 @@ while getopts ":p:s" opt ; do
         ShortOutput="true" ;;
     h) ShowUsage;;
     ?) ShowUsage;;
+    :) ShowUsage::
     esac
 done
 
