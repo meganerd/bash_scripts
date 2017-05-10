@@ -7,17 +7,17 @@ set is
 set hls
 set expandtab
 set noai
+set ruler
 set bg=dark
 colorscheme default
 hi Comment ctermfg=34
 hi Comment ctermbg=233
-set tabstop=4
+set tabstop=2
 set shiftwidth=2
 set smartindent
-"set autoindent
+set autoindent
 "set backspace=2
 set number
-set ruler
 map <D-A-RIGHT> <C-w>l
 map <D-A-LEFT> <C-w>h
 map <D-A-DOWN> <C-w><C-w>
@@ -34,6 +34,10 @@ map  :w!<CR>:!aspell check %<CR>:e! %<CR>
 map <F7> :set linebreak <CR> :set display+=lastline <CR> :set wrap <CR> :setlocal spell spelllang=en_gb <CR>
 "F8 WordProcessorOff
 map <F8> :set nowrap <CR> :set nospell <CR> 
+<<<<<<< HEAD
 set statusline="%f%m%r%h%w [%Y] [0x%02.2B]%< %F%=%4v,%4l %3p%% of %L" 
 set laststatus=2
+=======
+set statusline="%f%m%r%h%w [%Y] [0x%02.2B]%< %F%=%4v,%4l %3p%% of %L"
 hi Search cterm=NONE ctermfg=grey ctermbg=blue
+>>>>>>> 2e140154ba55087d40892f51046e77ab1d4f4f3b
