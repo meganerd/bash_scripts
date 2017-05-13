@@ -1,5 +1,5 @@
 #!/bin/bash
-Log_Location="/home/gbjohnso/speedtest.log"
+Log_Location="$HOME/temp/speedtest.log"
 WebHostName="www.domain.tld"
 # I usually generate a file with "dd if =/dev/urandom of=download.dat count=4900 bs=4k" 
 # so that the resulting file aligns with 4k disk sectors. 

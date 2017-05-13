@@ -16,7 +16,7 @@ set shiftwidth=2
 set smartindent
 "set autoindent
 "set backspace=2
-aaa.oMega132set nonumber
+set nonumber
 set ruler
 map <D-A-RIGHT> <C-w>l
 map <D-A-LEFT> <C-w>h
