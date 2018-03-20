@@ -13,8 +13,9 @@ hi Comment ctermfg=34
 hi Comment ctermbg=233
 set tabstop=4
 set shiftwidth=2
-set smartindent
+"set smartindent
 "set autoindent
+set paste
 "set backspace=2
 set nonumber
 set ruler
