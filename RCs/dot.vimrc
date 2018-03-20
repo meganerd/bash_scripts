@@ -15,8 +15,8 @@ set tabstop=4
 set shiftwidth=2
 "set smartindent
 "set autoindent
-set paste
 "set backspace=2
+set paste
 set nonumber
 set ruler
 map <D-A-RIGHT> <C-w>l
