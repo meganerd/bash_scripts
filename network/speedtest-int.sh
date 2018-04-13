@@ -14,6 +14,6 @@ if cmp /tmp/$TestFileName-actual /tmp/$TestFileName.md5 #&> /dev/null  # Uncomme
 then echo "Test file appears to have downloaded correctly"
 else echo "Test file is corrupt, please try again"
 fi
-#cleanup
+# cleanup files in /tmp/
 rm -f /tmp/$TestFileName*
 
