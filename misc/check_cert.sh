@@ -21,15 +21,15 @@ For example: check_cert.sh -n google.com -p 443\n
 
 ExtractCert()
 {
-echo "Common name and subject alternative names:"
+printf "\n Common name and subject alternative names:\n"
 
-sed -ne 's/^\( *\)Subject:/\1/p;/X509v3 Subject Alternative Name/{
-    N;s/^.*\n//;:a;s/^\( *\)\(.*\), /\1\2\n\1/;t;p;q; }' < <(
+ awk '/X509v3 Subject Alternative Name/ {getline;gsub(/DNS:/,"",$0);gsub(/IPAddress:/,"",$0); print}' < <(
+ 
     openssl x509 -noout -text -in <(
         openssl s_client -ign_eof 2>/dev/null <<<$'HEAD / HTTP/1.0\r\n\r' \
             -connect $hostname:$port ) )
 echo ""
-echo "Certificate details:"
+printf "Certificate details:\n"
 echo | openssl s_client -connect $hostname:$port 2>/dev/null | openssl x509 -noout -issuer -subject -dates -serial -email -fingerprint
 }
 
