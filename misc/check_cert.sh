@@ -33,7 +33,7 @@ printf "Certificate details:\n"
 echo | openssl s_client -connect $hostname:$port 2>/dev/null | openssl x509 -noout -issuer -subject -dates -serial -email -fingerprint
 }
 
-while getopts "n:ph" opt ; do
+while getopts "n:p:h" opt ; do
 	case "$opt" in
 
 	  n) nameflag=1
