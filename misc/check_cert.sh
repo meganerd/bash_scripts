@@ -24,7 +24,7 @@ ExtractCert() {
 
 		openssl x509 -noout -text -in <(
 			openssl s_client -ign_eof \
-				-connect $hostname:$port 2>/dev/null <<<$'HEAD / HTTP/1.0\r\n\r'))
+				-connect $hostname:$port -servername $hostname 2>/dev/null <<<$'HEAD / HTTP/1.0\r\n\r'))
 
 	echo ""
 	printf "Certificate details:\n"
