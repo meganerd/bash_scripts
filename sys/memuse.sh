@@ -9,26 +9,36 @@ which smem &>/dev/null
 
 ShowUsage() {
 	printf "This script requires a process name.  For best results use the full path of the application (eg. /opt/google/chrome/chrome). \n
--p	-- Process name or path.\n
+-p  -- Process name or path.  If left blank smem -w will be used instead.
 -s  -- Short output (total of pss usage only).
--h	-- Help (this text).\n
+-h  -- Help (this text).
 
 For example: memuse.sh -p /opt/google/chrome/chrome \n
 "
 }
 
 # Setting default value of variable(s).
-ShortOutput="false"
+ShortOutput="False"
 
 MemUseLong() {
+	if [ -z "$ProcessName" ];
+		then echo "No process name specified (use -h for details), defaulting to summary:" ;
+		smem -w ;
+	else
 	smem -t -k -P $ProcessName
+	fi
 }
 
 MemUseShort() {
-	smem -t -k -c pss -P $ProcessName | tail -n 1
+	if [ -z "$ProcessName" ];
+		then echo "No process name specified (use -h for details), defaulting to summary:" ;
+		smem -w ;
+	else
+		smem -t -k -c pss -P $ProcessName | tail -n 1
+	fi
 }
 
-while getopts ":p:s" opt; do
+while getopts ":p:sh" opt; do
 	case "$opt" in
 
 	p)
@@ -37,17 +47,21 @@ while getopts ":p:s" opt; do
 		;;
 	s)
 		shortflag=1
-		ShortOutput="true"
+		ShortOutput="True"
 		;;
-	h) ShowUsage ;;
-	?) ShowUsage ;;
+	h) ShowUsage=1 
+		ShowHelp="True"
+		;;
 	:) ShowUsage:: ;;
-	esac
+		esac
 done
 
-if [[ "$ShortOutput" == "true" ]]; then
+if [[ "$ShowHelp" == "True" ]]; then
+	ShowUsage;
+	exit 1
+elif [[ "$ShortOutput" == "True" ]]; then
 	MemUseShort
-elif [[ "$ShortOutput" == "false" ]]; then
+elif [[ "$ShortOutput" == "False" ]]; then
 	MemUseLong
 else
 	ShowUsage
