@@ -1,7 +1,5 @@
 #!/bin/bash
-# Initial sketch of a simple SSL cert checking script.  Needs proper command line flags and input checking.
-#Shostname=$1
-#port=$2
+# Initial sketch of a simple SSL cert checking script.  Still needs input checking.
 
 which openssl &>/dev/null
 
