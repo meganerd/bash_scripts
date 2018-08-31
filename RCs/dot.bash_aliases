@@ -24,7 +24,11 @@ alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t str
 alias wget-recursive="wget -r --level=5 -nH -N -np"
 alias aptitude-search="aptitude --disable-columns search"
 
-
+manopt() {                                                                                                              
+  local cmd=$1 opt=$2                                                                                                   
+  [[ $opt == -* ]] || { (( ${#opt} == 1 )) && opt="-$opt" || opt="--$opt"; }                                            
+  man "$cmd" | col -b | awk -v opt="$opt" -v RS= '$0 ~ "(^|,)[[:blank:]]+" opt "([[:punct:][:space:]]|$)"'              
+}
 
 # Put all local system specific aliases into a ~/.bash_aliases_local file
 if [ -f ~/.bash_alaises_local ] 
