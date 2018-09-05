@@ -16,6 +16,7 @@ set shiftwidth=2
 "set smartindent
 "set autoindent
 "set backspace=2
+set backspace=indent,eol,start
 set paste
 set nonumber
 set ruler
