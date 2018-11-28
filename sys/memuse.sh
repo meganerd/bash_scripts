@@ -23,7 +23,7 @@ ShortOutput="False"
 MemUseLong() {
 	if [ -z "$ProcessName" ];
 		then echo "No process name specified (use -h for details), defaulting to summary:" ;
-		smem -w ;
+		smem -t -k -c "pss name pid user" -s pss;
 	else
 	smem -t -k -P $ProcessName
 	fi
@@ -31,8 +31,8 @@ MemUseLong() {
 
 MemUseShort() {
 	if [ -z "$ProcessName" ];
-		then echo "No process name specified (use -h for details), defaulting to summary:" ;
-		smem -w ;
+		then echo "No process name specified (use -h for details), defaulting to sorted list of top 10 processes:" ;
+		smem -t -k -c "pss name pid user" -r |head -n 11 ;
 	else
 		smem -t -k -c pss -P $ProcessName | tail -n 1
 	fi
