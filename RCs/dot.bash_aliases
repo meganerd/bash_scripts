@@ -1,3 +1,14 @@
+ssh-agent
+#ssh-add ~/.ssh/hostkey
+
+# Ansible vault password file
+export ANSIBLE_VAULT_PASSWORD_FILE=$HOME/.ssh/vault.txt
+source $HOME/.cargo/env
+
+export EDITOR=`which vim`
+alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t string menu:minimize,maximize,close"
+alias ltcp="sudo lsof -i -sTCP:LISTEN -P"
+
 # system enhancements
 alias rm='rm -i'
 alias cp='cp -i'
@@ -18,11 +29,10 @@ alias rdp="rdesktop -g 1280x800 -P -z -r sound:local -r clipboard:PRIMARYCLIPBOA
 alias dirf='find . -type d | sed -e "s/[^-][^\/]*\//  |/g" -e "s/|\([^ ]\)/|-\1/"'
 # count files by type - http://www.shell-fu.org/lister.php?id=173
 alias ftype="find ${*-.} -type f | xargs file | awk -F, '\''{print $1}'\'' | awk '\''{$1=NULL;print $0}'\'' | sort | uniq -c | sort -nr"
-alias restart-nautilus='kill -HUP `ps axf |grep nautilus |grep -v pts | cut -f2 -d " "`'
 alias logwatch="tail -f /var/log/messages"
 alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t string menu:minimize,maximize,close"
 alias wget-recursive="wget -r --level=5 -nH -N -np"
-alias aptitude-search="aptitude --disable-columns search"
+alias ggl="git log --all --decorate --oneline --graph"
 
 manopt() {                                                                                                              
   local cmd=$1 opt=$2                                                                                                   
@@ -32,6 +42,18 @@ manopt() {
 
 # Put all local system specific aliases into a ~/.bash_aliases_local file
 if [ -f ~/.bash_alaises_local ] 
-  then include ~/.bash_aliases_local;
+  then . ~/.bash_aliases_local;
   fi
+
+export PS1="\e[33;1m\u\033[0m\e[32;1m@\e[36;1m\h\e[0m \e[32;1m<\t> \e[33;1m\w\e[0m \n\$ "
+export PS2=""
+export PS3=""
+export PS4=""
+if [ -f ~/src/bash_scripts/RCs/dot.bash_aliases ]; then
+        . ~/src/bash_scripts/RCs/dot.bash_aliases
+fi
+
+if [ -d ~/bin ]; then
+        export PATH="$PATH:~/bin"
+fi
 
