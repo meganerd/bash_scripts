@@ -5,17 +5,12 @@ set ignorecase
 set nowrap
 set is
 set hls
-set expandtab
 set noai
 set bg=dark
 colorscheme default
 hi Comment ctermfg=34
 hi Comment ctermbg=233
-set tabstop=4
 set shiftwidth=2
-"set smartindent
-"set autoindent
-"set backspace=2
 set backspace=indent,eol,start
 set paste
 set nonumber
@@ -39,3 +34,8 @@ map <F8> :set nowrap <CR> :set nospell <CR>
 set statusline="%f%m%r%h%w [%Y] [0x%02.2B]%< %F%=%4v,%4l %3p%% of %L" 
 set laststatus=2
 hi Search cterm=NONE ctermfg=grey ctermbg=blue
+set tabstop=8 softtabstop=0 expandtab shiftwidth=4 smarttab
+set listchars=eol:¬,tab:>·,trail:~,extends:>,precedes:<,space:␣
+noremap <F5> :set list!<CR>
+inoremap <F5> <C-o>:set list!<CR>
+cnoremap <F5> <C-c>:set list!<CR>
