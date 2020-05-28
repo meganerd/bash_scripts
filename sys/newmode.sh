@@ -25,7 +25,11 @@ createmode() { {
 
 if [[ "$1" == "--help" || $# -eq 0 ]]; then
   cat <<EOQ
-newmode [--gtf/--del] VGA1 1920 1200 r60 60 r70 r75
+You might only need the output port, resolution and refresh rate:
+newmode.sh HDMI-A-0 2560 1440 r60
+
+A more complete example (use https://arachnoid.com/modelines/ to for more values)
+newmode.sh [--gtf/--del] VGA1 1920 1200 r60 60 r70 r75
 
 EOQ
   
