@@ -32,7 +32,7 @@ MemUseLong() {
 MemUseShort() {
 	if [ -z "$ProcessName" ];
 		then echo "Short summary specified (use -h for details)." ;
-		smem -t -k -c "pss name pid user" -r | (head -n 1 && tail -n 10) ;
+		smem -t -k -c "pss name pid user"  | (head -n 1 && tail -n 10) ;
 	else
 		smem -t -k -c pss -P $ProcessName | tail -n 1
 	fi
