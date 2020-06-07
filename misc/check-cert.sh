@@ -26,15 +26,15 @@ PrintIntermediateCert() {
 ExtractCert() {
 	printf "\n Common name and subject alternative names:\n"
 
-	"awk '/X509v3 Subject Alternative Name/ {getline;gsub(/DNS:/,"",$0);gsub(/IPAddress:/,"",$0); print}' < <(
+	awk '/X509v3 Subject Alternative Name/ {getline;gsub(/DNS:/,"",$0);gsub(/IPAddress:/,"",$0); print}' < <(
 
 		openssl x509 -noout -text -in <(
 			openssl s_client -ign_eof \
-				-connect $hostname:$port -servername $hostname 2>/dev/null <<<$'HEAD / HTTP/1.0\r\n\r'))"
+				-connect $hostname:$port -servername $hostname 2>/dev/null <<<$'HEAD / HTTP/1.0\r\n\r'))
 
 	echo ""
 	printf "Certificate details:\n"
-	echo | "openssl s_client -connect $hostname:$port 2>/dev/null" | "openssl x509 -noout -issuer -subject -dates -serial -email -fingerprint"
+	echo | openssl s_client -connect $hostname:$port 2>/dev/null | openssl x509 -noout -issuer -subject -dates -serial -email -fingerprint
 }
 
 while getopts "n:p:ih" opt; do
