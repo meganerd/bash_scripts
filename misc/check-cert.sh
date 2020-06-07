@@ -20,7 +20,7 @@ For example: check_cert.sh -n google.com -p 443\n
 PrintIntermediateCert() {
     	echo ""
 	printf "Certificate details:\n"
-	echo | "openssl s_client -showcerts -servername $hostname -connect $hostname:$port 2>/dev/null" | "openssl x509 -inform pem -noout -text"
+	echo | openssl s_client -showcerts -servername $hostname -connect $hostname:$port 2>/dev/null | openssl x509 -inform pem -noout -text
 }
 
 ExtractCert() {
@@ -57,18 +57,23 @@ while getopts "n:p:ih" opt; do
 done
 
 if
-	[[ "$nameflag" == "1" ]] && [[ "$portflag" == "1" ]]
+	[[ "$nameflag" == "1" ]] && [[ "$portflag" == "1" ]] && [[ "$IntermediateFlag" != "1" ]]
 then
 	ExtractCert
 elif
-	[[ "$nameflag" == "1" ]]
+	[[ "$nameflag" == "1" ]]  && [[ "$IntermediateFlag" != "1" ]]
 then 
 	port=443
 	ExtractCert
 elif
-    [[ "$nameflag" == "1" ]] && [[ "$IntermediateFlag" == "1" ]]
+    [[ "$nameflag" == "1" ]] && [[ "$IntermediateFlag" == "1" ]] && [[ "$portflag" != "1" ]]
 then 
+    port=443
     PrintIntermediateCert
+elif
+    [[ "$nameflag" == "1" ]] && [[ "$IntermediateFlag" == "1" ]] && [[ "$portflag" != "1" ]]
+    then PrintIntermediateCert
+
 else
 	ShowUsage
 	exit 1
