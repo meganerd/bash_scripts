@@ -73,7 +73,7 @@ then
     port=443
     PrintIntermediateCert
 elif
-    [[ "$nameflag" == "1" ]] && [[ "$IntermediateFlag" == "1" ]] && [[ "$portflag" != "1" ]]
+    [[ "$nameflag" == "1" ]] && [[ "$IntermediateFlag" == "1" ]] && [[ "$portflag" == "1" ]]
 then
     PrintIntermediateCert
 
