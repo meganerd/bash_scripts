@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env /bin/bash
 # Forked from https://github.com/tdg5/blog/blob/master/_includes/scripts/dd_obs_test.sh
 
 # Since we're dealing with dd, abort if any errors occur
