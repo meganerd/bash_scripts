@@ -3,7 +3,7 @@ ssh-agent
 
 # Ansible vault password file
 export ANSIBLE_VAULT_PASSWORD_FILE=$HOME/.ssh/vault.txt
-source $HOME/.cargo/env
+#source $HOME/.cargo/env
 
 export EDITOR=`which vim`
 alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t string menu:minimize,maximize,close"
@@ -50,9 +50,6 @@ export PS1="\e[33;1m\u\033[0m\e[32;1m@\e[36;1m\h\e[0m \e[32;1m<\t> \e[33;1m\w\e[
 export PS2=""
 export PS3=""
 export PS4=""
-if [ -f ~/src/bash_scripts/RCs/dot.bash_aliases ]; then
-        . ~/src/bash_scripts/RCs/dot.bash_aliases
-fi
 
 if [ -d ~/bin ]; then
         export PATH="$PATH:~/bin"
