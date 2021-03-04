@@ -40,7 +40,7 @@ PINGHOST=$HOST	# if we cannot ping the backup server, change this value to somet
 
 ## ======== You should not need to edit anything below this line ========= ##
 
-TIMESTAMP=`date +%F.%M`			# not currently used.  
+TIMESTAMP=$(date +%F_%H.%M)			# not currently used.  
 
 # number of elements in the array.  Should not need to be changed.
 # used to control the number of times the backup loop runs, should be once on every
