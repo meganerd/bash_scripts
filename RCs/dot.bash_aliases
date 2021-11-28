@@ -4,6 +4,7 @@ if ![ -d  /tmp/gbjohnso/Downloads ]
 fi
 
 ssh-agent
+eval "(ssh-agent -s)"
 #ssh-add ~/.ssh/hostkey
 
 # Ansible vault password file
@@ -60,3 +61,6 @@ if [ -d ~/bin ]; then
         export PATH="$PATH:~/bin"
 fi
 
+if [ -d ~/.cargo/bin ]; then
+    export PATH="~/.cargo/bin:$PATH"
+fi

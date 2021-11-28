@@ -16,10 +16,16 @@ For example: check_cert.sh -n google.com -p 443\n
 "
 }
 
+CleanHostName() {
+var_cleanhostname=`echo $hostname | sed -e 's/[^/]*\/\/\([^@]*@\)\?\([^:/]*\).*/\2/'`
+
+}
+
+
 PrintIntermediateCert() {
     echo ""
     printf "Certificate details:\n"
-    echo | openssl s_client -showcerts -servername $hostname -connect $hostname:$port 2>/dev/null | openssl x509 -inform pem -noout -text
+    echo | openssl s_client -showcerts -servername $var_cleanhostname -connect $var_cleanhostname:$port 2>/dev/null | openssl x509 -inform pem -noout -text
 }
 
 ExtractCert() {
@@ -29,13 +35,13 @@ ExtractCert() {
 
         openssl x509 -noout -text -in <(
             openssl s_client -ign_eof \
-                -connect $hostname:$port -servername $hostname 2>/dev/null <<<$'HEAD / HTTP/1.0\r\n\r'
+                -connect $var_cleanhostname:$port -servername $var_cleanhostname 2>/dev/null <<<$'HEAD / HTTP/1.0\r\n\r'
         )
     )
 
     echo ""
     printf "Certificate details:\n"
-    echo | openssl s_client -connect $hostname:$port 2>/dev/null | openssl x509 -noout -issuer -subject -dates -serial -email -fingerprint
+    echo | openssl s_client -connect $var_cleanhostname:$port 2>/dev/null | openssl x509 -noout -issuer -subject -dates -serial -email -fingerprint
 }
 
 while getopts "n:p:ih" opt; do
@@ -57,6 +63,8 @@ while getopts "n:p:ih" opt; do
     esac
 
 done
+
+CleanHostName
 
 if
     [[ "$nameflag" == "1" ]] && [[ "$portflag" == "1" ]] && [[ "$IntermediateFlag" != "1" ]]
