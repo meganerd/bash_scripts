@@ -1,5 +1,5 @@
 # Create a /tmp folder structure if it does not already exist.
-if ![ -d  /tmp/gbjohnso/Downloads ]
+if [ ! -d  /tmp/gbjohnso/Downloads ]
     then mkdir -p /tmp/$USER/Downloads
 fi
 
