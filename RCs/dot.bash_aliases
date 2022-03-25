@@ -3,8 +3,7 @@ if [ ! -d  /tmp/gbjohnso/Downloads ]
     then mkdir -p /tmp/$USER/Downloads
 fi
 
-ssh-agent
-eval "(ssh-agent -s)"
+#eval "(ssh-agent -s)"
 #ssh-add ~/.ssh/hostkey
 
 # Ansible vault password file
