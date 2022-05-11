@@ -1,12 +1,8 @@
 #! /bin/bash
-EMAIL=changeme@domain.tld
+echo "Beginning update at $(date)"
+EMAIL=user@domain.tld
 PATH=$PATH:/usr/local/sbin:/usr/sbin:/sbin:/usr/bin
 
-aptitude update -q
-apt-get upgrade  -q -d 
+apt update && apt upgrade -y && apt autoremove -y
 
-# On this system I am not using the -s flag which only simulates 
-# an install.  In this case I want to automatically install updates.  To simulate 
-# add the -s flag to apt-get.
-
-aptitude safe-upgrade -y
+echo "Completing update at $(date)"
