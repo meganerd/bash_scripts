@@ -63,3 +63,7 @@ fi
 if [ -d ~/.cargo/bin ]; then
     export PATH="~/.cargo/bin:$PATH"
 fi
+
+if [ -d ~/go/bin ]; then
+    export PATH="~/go/bin:$PATH"
+fi
