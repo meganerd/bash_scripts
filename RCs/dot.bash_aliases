@@ -10,7 +10,7 @@ fi
 export ANSIBLE_VAULT_PASSWORD_FILE=$HOME/.ssh/vault.txt
 #source $HOME/.cargo/env
 
-export EDITOR=`which vim`
+export EDITOR=$(which vim)
 alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t string menu:minimize,maximize,close"
 alias ltcp="sudo lsof -i -sTCP:LISTEN -P"
 export  PATH=~/bin/android-studio/bin:${PATH}
@@ -40,14 +40,14 @@ alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t str
 alias wget-recursive="wget -r --level=5 -nH -N -np"
 alias ggl="git log --all --decorate --oneline --graph"
 
-manopt() {                                                                                                              
-  local cmd=$1 opt=$2                                                                                                   
-  [[ $opt == -* ]] || { (( ${#opt} == 1 )) && opt="-$opt" || opt="--$opt"; }                                            
-  man "$cmd" | col -b | awk -v opt="$opt" -v RS= '$0 ~ "(^|,)[[:blank:]]+" opt "([[:punct:][:space:]]|$)"'              
+manopt() {
+  local cmd=$1 opt=$2
+  [[ $opt == -* ]] || { (( ${#opt} == 1 )) && opt="-$opt" || opt="--$opt"; }
+  man "$cmd" | col -b | awk -v opt="$opt" -v RS= '$0 ~ "(^|,)[[:blank:]]+" opt "([[:punct:][:space:]]|$)"'
 }
 
 # Put all local system specific aliases into a ~/.bash_aliases_local file
-if [ -f ~/.bash_alaises_local ] 
+if [ -f ~/.bash_alaises_local ]
   then . ~/.bash_aliases_local;
 fi
 
