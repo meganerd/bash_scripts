@@ -9,8 +9,9 @@ EXECCOMMAND="--interactive --command sh"
 ShowUsage() {
     printf "This script requires three parameters (AWS Region, Profile as defined in ~/.aws/config, and environment.\n
     It also requires your shell session to have already logged into AWS via 'aws sso login'
--p	-- AWS Profile to use (check in ~/.aws/config).\n
+-c  -- Command to send to the remote end (eg. bash)
 -e	-- Environment we wish to use.\n
+-p	-- AWS Profile to use (check in ~/.aws/config).\n
 -r  -- AWS Region to use (eg. us-east-2).\n
 -h	-- Help (this text).\n
 
@@ -18,7 +19,7 @@ For example: aws-exec-wrapper.sh -p qa-sso -r us-east-2 -e qa36\n
 "
 }
 
-while getopts "e:p:r:c:h" opt; do
+while getopts "c:e:p:r:h" opt; do
     case "$opt" in
 
     e)
