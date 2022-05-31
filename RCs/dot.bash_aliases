@@ -3,8 +3,7 @@ if [ ! -d  /tmp/gbjohnso/Downloads ]
     then mkdir -p /tmp/$USER/Downloads
 fi
 
-#eval "(ssh-agent -s)"
-#ssh-add ~/.ssh/hostkey
+DOCKER_BUILDKIT=1 
 
 # Ansible vault password file
 export ANSIBLE_VAULT_PASSWORD_FILE=$HOME/.ssh/vault.txt
@@ -62,4 +61,8 @@ fi
 
 if [ -d ~/.cargo/bin ]; then
     export PATH="~/.cargo/bin:$PATH"
+fi
+
+if [ -d ~/go/bin ]; then
+    export PATH="~/go/bin:$PATH"
 fi
