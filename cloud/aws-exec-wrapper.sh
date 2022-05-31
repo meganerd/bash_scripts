@@ -2,22 +2,25 @@
 set -e
 set -o pipefail
 
-# Setting default EXECCOMMAND.  The sh command will be replaced by whatever is passed to the -c flag.
-EXECCOMMAND="--interactive --command sh"
-
 ShowUsage() {
     printf "This script requires three parameters (AWS Region, Profile as defined in ~/.aws/config, and environment.\n
-    It also requires your shell session to have already logged into AWS via 'aws sso login'
--c  -- Command to send to the remote end (eg. bash)
--d  -- Debug (causes set -x to be used to enable bash debugging)
--e	-- Environment we wish to use.\n
--p	-- AWS Profile to use (check in ~/.aws/config).\n
--r  -- AWS Region to use (eg. us-east-2).\n
--h	-- Help (this text).\n
+It also requires your shell session to have already logged into AWS via 'aws sso login'\n
+\n
+-c  -- ** OPTIONAL ** Command to send to the remote end (eg. bash)
+-d  -- ** OPTIONAL ** Debug (causes set -x to be used to enable bash debugging)
+-e  -- ** REQUIRED ** Environment we wish to use.
+-p  -- ** REQUIRED ** AWS Profile to use (check in ~/.aws/config).
+-r  -- ** REQUIRED ** AWS Region to use (eg. us-east-2).
+-h  -- Help (this text).\n
 
 For example: aws-exec-wrapper.sh -p qa-sso -r us-east-2 -e qa36\n
 "
 }
+
+if [ $# -eq 0 ]; then
+    ShowUsage
+    exit 1
+fi
 
 while getopts "c:e:p:r:dh" opt; do
     case "$opt" in
@@ -37,14 +40,20 @@ while getopts "c:e:p:r:dh" opt; do
     r)
         AWS_REGION=$OPTARG
         ;;
-    h) ShowUsage ;;
-    *) ShowUsage ;;
+    h) ShowUsage
+        ;;
+    *) ShowUsage
+        ;;
     esac
 done
 
 if [[ "$DEBUGFLAG" -eq 1 ]]; then
 set -x
 fi
+
+
+# Setting default EXECCOMMAND.  The sh command will be replaced by whatever is passed to the -c flag.
+EXECCOMMAND="--interactive --command sh"
 
 FAMILYFILTER=tbl-${AWS_ENV}-DjangoTaskDefinition
 
