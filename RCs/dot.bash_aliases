@@ -3,6 +3,18 @@ if [ ! -d  /tmp/gbjohnso/Downloads ]
     then mkdir -p /tmp/$USER/Downloads
 fi
 
+if [ -d ~/bin ]; then
+        export PATH="$PATH:~/bin"
+fi
+
+if [ -d ~/.cargo/bin ]; then
+    export PATH="~/.cargo/bin:$PATH"
+fi
+
+if [ -d ~/go/bin ]; then
+    export PATH="~/go/bin:$PATH"
+fi
+
 #eval "(ssh-agent -s)"
 #ssh-add ~/.ssh/hostkey
 
@@ -55,15 +67,3 @@ export PS1="\e[33;1m\u\033[0m\e[32;1m@\e[36;1m\h\e[0m \e[32;1m<\t> \e[33;1m\w\e[
 export PS2=""
 export PS3=""
 export PS4=""
-
-if [ -d ~/bin ]; then
-        export PATH="$PATH:~/bin"
-fi
-
-if [ -d ~/.cargo/bin ]; then
-    export PATH="~/.cargo/bin:$PATH"
-fi
-
-if [ -d ~/go/bin ]; then
-    export PATH="~/go/bin:$PATH"
-fi
