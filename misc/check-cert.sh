@@ -17,7 +17,7 @@ For example: check_cert.sh -n google.com -p 443\n
 }
 
 CleanHostName() {
-var_cleanhostname=`echo $hostname | sed -e 's/[^/]*\/\/\([^@]*@\)\?\([^:/]*\).*/\2/'`
+var_cleanhostname=$(echo $hostname | sed -e 's/[^/]*\/\/\([^@]*@\)\?\([^:/]*\).*/\2/')
 
 }
 
