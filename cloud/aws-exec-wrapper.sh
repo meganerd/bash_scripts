@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# invoke script with bash -x for debugging.
 set -e
 set -o pipefail
 
@@ -10,6 +9,7 @@ ShowUsage() {
     printf "This script requires three parameters (AWS Region, Profile as defined in ~/.aws/config, and environment.\n
     It also requires your shell session to have already logged into AWS via 'aws sso login'
 -c  -- Command to send to the remote end (eg. bash)
+-d  -- Debug (causes set -x to be used to enable bash debugging)
 -e	-- Environment we wish to use.\n
 -p	-- AWS Profile to use (check in ~/.aws/config).\n
 -r  -- AWS Region to use (eg. us-east-2).\n
@@ -19,29 +19,32 @@ For example: aws-exec-wrapper.sh -p qa-sso -r us-east-2 -e qa36\n
 "
 }
 
-while getopts "c:e:p:r:h" opt; do
+while getopts "c:e:p:r:dh" opt; do
     case "$opt" in
 
+    c)
+    EXECCOMMAND="--interactive --command $OPTARG"
+    ;;
+    d)
+    DEBUGFLAG=1
+    ;;
     e)
-        EnvironmentFlag=1
         AWS_ENV=$OPTARG
         ;;
     p)
-        ProfileFlag=1
         AWS_PROFILE=$OPTARG
         ;;
     r)
-        RegionFlag=1
         AWS_REGION=$OPTARG
-        ;;
-    c)
-        CommandFlag=1
-        EXECCOMMAND="--interactive --command $OPTARG"
         ;;
     h) ShowUsage ;;
     *) ShowUsage ;;
     esac
 done
+
+if [[ "$DEBUGFLAG" -eq 1 ]]; then
+set -x
+fi
 
 FAMILYFILTER=tbl-${AWS_ENV}-DjangoTaskDefinition
 
