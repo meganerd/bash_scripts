@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # invoke script with bash -x for debugging.
 set -e
 set -o pipefail
