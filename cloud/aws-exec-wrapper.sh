@@ -3,14 +3,40 @@ set -x
 set -e
 set -o pipefail
 
-AWS_PROFILE=qa-sso
-AWS_REGION=us-east-2
+ShowUsage() {
+    printf "This script requires three parameters (AWS Region, Profile as defined in ~/.aws/config, and environment.\n
+-p	-- AWS Profile to use (check in ~/.aws/config).\n
+-e	-- Environment we wish to use.\n
+-r  -- AWS Region to use.\n
+-h	-- Help (this text).\n
 
-QAENV=qa19
+For example: aws-exec-wrapper.sh -p qa-sso -r us-east-2 -e qa36\n
+"
+}
 
-FAMILYFILTER=tbl-${QAENV}-DjangoTaskDefinition
+while getopts "e:p:r:h" opt; do
+    case "$opt" in
 
-CLUSTERFILTER=${QAENV}
+    e)
+        EnvironmentFlag=1
+        AWS_Env=$OPTARG
+        ;;
+    p)
+        ProfileFlag=1
+        AWS_Profile=$OPTARG
+        ;;
+    r)
+        RegionFlag=1
+        AWS_Region=$OPTARG
+        ;;
+    h) ShowUsage ;;
+    *) ShowUsage ;;
+    esac
+done
+
+FAMILYFILTER=tbl-${AWS_Env}-DjangoTaskDefinition
+
+CLUSTERFILTER=${AWS_Env}
 
 FAMILY=$(aws --region $AWS_REGION --profile $AWS_PROFILE ecs list-task-definition-families --output text | grep $FAMILYFILTER | cut -f2)
 CLUSTER=$(aws --region $AWS_REGION --profile $AWS_PROFILE ecs list-clusters --output text | cut -f2 | sed 's,/, ,g' | cut -d' ' -f2 | grep $CLUSTERFILTER )
