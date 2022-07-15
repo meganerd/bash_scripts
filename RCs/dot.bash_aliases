@@ -8,11 +8,11 @@ if [ -d ~/bin ]; then
 fi
 
 if [ -d ~/.cargo/bin ]; then
-    export PATH="~/.cargo/bin:$PATH"
+    export PATH="$PATH:~/.cargo/bin"
 fi
 
 if [ -d ~/go/bin ]; then
-    export PATH="~/go/bin:$PATH"
+    export PATH="$PATH:~/go/bin"
 fi
 
 #eval "(ssh-agent -s)"
@@ -26,6 +26,7 @@ export EDITOR=$(which vim)
 alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t string menu:minimize,maximize,close"
 alias ltcp="sudo lsof -i -sTCP:LISTEN -P"
 export  PATH=~/bin/android-studio/bin:${PATH}
+alias warpspeed='eval "$(starship init bash)"'
 
 # system enhancements
 alias rm='rm -i'
@@ -67,3 +68,5 @@ export PS1="\e[33;1m\u\033[0m\e[32;1m@\e[36;1m\h\e[0m \e[32;1m<\t> \e[33;1m\w\e[
 export PS2=""
 export PS3=""
 export PS4=""
+
+    
