@@ -1,6 +1,7 @@
 # Create a /tmp folder structure if it does not already exist.
 if [ ! -d  /tmp/gbjohnso/Downloads ]
     then mkdir -p /tmp/$USER/Downloads
+    bindfs --no-allow-other /tmp/$USER $HOME/tmp
 fi
 
 if [ -d ~/bin ]; then
@@ -37,6 +38,8 @@ alias out="cat /etc/motd;logout"
 alias lw="ls -CGa --color=auto"
 alias l='ls $LS_OPTIONS -lA'
 alias stop="/sbin/shutdown -c"
+alias getweather="curl wttr.in"
+
 # Disabled as the the geektools proxy seems unresponsive
 #alias whois="whois -h whois.geektools.com"
 alias dus="du -Pachx --max-depth=1 . | sort -h"
