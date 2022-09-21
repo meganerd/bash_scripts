@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Brief output.  Will be a parameter option in an upcoming revision
 #smem -t -k -c pss -P $1 | tail -n 1
 
@@ -25,7 +25,7 @@ MemUseLong() {
 		then echo "No process name specified (use -h for details), defaulting to summary:" ;
 		smem -t -k -c "pss name pid user" -s pss;
 	else
-	smem -t -k -P $ProcessName
+	smem -t -k -P "$ProcessName"
 	fi
 }
 
@@ -34,7 +34,7 @@ MemUseShort() {
 		then echo "Short summary specified (use -h for details)." ;
 		smem -t -k -c "pss name pid user"  | (head -n 1 && tail -n 10) ;
 	else
-		smem -t -k -c pss -P $ProcessName | tail -n 1
+		smem -t -k -c pss -P "$ProcessName" | tail -n 1
 	fi
 }
 
@@ -42,17 +42,14 @@ while getopts ":p:sh" opt; do
 	case "$opt" in
 
 	p)
-		PName=1
 		ProcessName="$OPTARG"
 		;;
 	s)
-		shortflag=1
 		ShortOutput="True"
 		;;
-	h) ShowUsage=1 
-		ShowHelp="True"
+	h) ShowHelp="True"
 		;;
-	:) ShowUsage:: ;;
+	*) ShowUsage:: ;;
 		esac
 done
 
