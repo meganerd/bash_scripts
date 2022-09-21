@@ -1,6 +1,7 @@
 # Create a /tmp folder structure if it does not already exist.
 if [ ! -d  /tmp/gbjohnso/Downloads ]
     then mkdir -p /tmp/$USER/Downloads
+    bindfs /tmp/$USER $HOME/tmp
 fi
 
 if [ -d ~/bin ]; then
@@ -13,6 +14,11 @@ fi
 
 if [ -d ~/go/bin ]; then
     export PATH="$PATH:~/go/bin"
+    export GOPATH="$HOME/go"
+fi
+
+if [ -d /usr/local/go/bin ]; then
+    export PATH="$PATH:/usr/local/go/bin"
 fi
 
 #eval "(ssh-agent -s)"
@@ -37,6 +43,8 @@ alias out="cat /etc/motd;logout"
 alias lw="ls -CGa --color=auto"
 alias l='ls $LS_OPTIONS -lA'
 alias stop="/sbin/shutdown -c"
+alias getweather="curl wttr.in"
+
 # Disabled as the the geektools proxy seems unresponsive
 #alias whois="whois -h whois.geektools.com"
 alias dus="du -Pachx --max-depth=1 . | sort -h"
@@ -64,7 +72,11 @@ if [ -f ~/.bash_alaises_local ]
 then . ~/.bash_aliases_local;
 fi
 
-export PS1="\e[33;1m\u\033[0m\e[32;1m@\e[36;1m\h\e[0m \e[32;1m<\t> \e[33;1m\w\e[0m \n\$ "
+parse_git_branch() {
+     git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ (\1)/'
+}
+
+export PS1="\e[33;1m\u\033[0m\e[32;1m@\e[36;1m\h\e[0m \e[32;1m<\t> \e[33;1m\w\e[0m\e[\033[33m\]\$(parse_git_branch)\[\033[00m\]\n\$ "
 export PS2=""
 export PS3=""
 export PS4=""
