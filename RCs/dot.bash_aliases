@@ -61,7 +61,7 @@ manopt() {
 
 # Put all local system specific aliases into a ~/.bash_aliases_local file
 if [ -f ~/.bash_alaises_local ]
-  then . ~/.bash_aliases_local;
+then . ~/.bash_aliases_local;
 fi
 
 export PS1="\e[33;1m\u\033[0m\e[32;1m@\e[36;1m\h\e[0m \e[32;1m<\t> \e[33;1m\w\e[0m \n\$ "
