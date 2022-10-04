@@ -8,7 +8,7 @@ if ! command -v jq &>/dev/null; then
 fi                                                                                                                      
 
 if [[ "$USER" == "" ]] ; then
-    echo "No user specified.  Please pass your github username as the only parameter to this script."
+    echo "No user specified.  Please pass your github username as the first parameter to this script."
     exit 2
 fi
 STARS=$(curl --netrc-optional -sI https://api.github.com/users/"$USER"/starred?per_page=1 | grep -E '^link'| grep -E -o 'page=[0-9]+'|tail -1|cut -c6-)
