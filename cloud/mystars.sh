@@ -24,7 +24,7 @@ sleep 1
 printCSV () {
 # When using CSV output you will need to trim the first line by piping to "tail -n +2"
 for PAGE in $(seq $PAGES); do
-    curl --netrc-optional -sH "Accept: application/vnd.github.v3.star+json" "https://api.github.com/users/$USER/starred?per_page=100&page=$PAGE"|jq -r '.[]|[.starred_at,.repo.full_name,.repo.url,.repo.description]|@csv'
+    curl --netrc-optional -sH "Accept: application/vnd.github.v3.star+json" "https://api.github.com/users/$USER/starred?per_page=100&page=$PAGE"|jq -r '.[]|[.starred_at,.repo.full_name,.repo.html_url,.repo.description]|@csv'
 done
 }
 
@@ -36,7 +36,13 @@ done
 
 printDetailed () {
 for PAGE in $(seq $PAGES); do
-    curl --netrc-optional -sH "Accept: application/vnd.github.v3.star+json" "https://api.github.com/users/$USER/starred?per_page=100&page=$PAGE"|jq -r '.[]|[.starred_at,.repo.full_name,.repo.url,.repo.description]'
+    curl --netrc-optional -sH "Accept: application/vnd.github.v3.star+json" "https://api.github.com/users/$USER/starred?per_page=100&page=$PAGE"|jq -r '.[]|[.starred_at,.repo.full_name,.repo.html_url,.repo.description]'
+done
+}
+
+printURL () {
+for PAGE in $(seq $PAGES); do
+    curl --netrc-optional -sH "Accept: application/vnd.github.v3.star+json" "https://api.github.com/users/$USER/starred?per_page=100&page=$PAGE"|jq -r '.[]|[.starred_at,.repo.html_url] | @tsv'
 done
 }
 
@@ -44,6 +50,8 @@ if [[ "$2" = "csv" ]] ; then
 printCSV
 elif [[ "$2" = "detail" ]] ; then 
 printDetailed
+elif [[ "$2" = "url" ]] ; then
+printURL
 else
 printShort
 fi
