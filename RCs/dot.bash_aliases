@@ -29,6 +29,7 @@ export ANSIBLE_VAULT_PASSWORD_FILE=$HOME/.ssh/vault.txt
 #source $HOME/.cargo/env
 
 export EDITOR=$(which vim)
+alias apt_reinstall='for each in $(sudo apt list --upgradable |grep -v Listing |cut -f 1 -d "/") ; do sudo apt reinstall -y $each ; done'
 alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t string menu:minimize,maximize,close"
 alias ltcp="sudo lsof -i -sTCP:LISTEN -P"
 export  PATH=~/bin/android-studio/bin:${PATH}
