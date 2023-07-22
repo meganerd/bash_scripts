@@ -21,6 +21,13 @@ if [ -d /usr/local/go/bin ]; then
     export PATH="$PATH:/usr/local/go/bin"
 fi
 
+if [ -f $(which xclip) ]; then 
+    alias pbcopy='xclip -selection clipboard'
+    alias pbpaste='xclip -selection clipboard -o'
+else 
+    echo "xclip not installed, not setting pbcopy alias."
+fi
+
 #eval "(ssh-agent -s)"
 #ssh-add ~/.ssh/hostkey
 
