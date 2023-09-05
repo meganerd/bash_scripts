@@ -84,7 +84,7 @@ parse_git_branch() {
 git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ (\1)/'
 }
 
-export PS1="\e[33;1m\u\033[0m\e[32;1m@\e[36;1m\h\e[0m \e[32;1m<\t> \e[33;1m\w\e[0m\e[\033[33m\]\$(parse_git_branch)\[\033[00m\]\n\$ "
+export PS1="\e[90;1m\u\033[0m\e[32;1m@\e[34;1m\h\e[0m \e[32;1m<\t> \e[34;1m\w\e[0m\e[\033[33m\]\$(parse_git_branch)\[\033[00m\]\n\$ "
 export PS2=""
 export PS3=""
 export PS4=""
