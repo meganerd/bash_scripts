@@ -22,6 +22,13 @@ if [ -d /usr/local/go/bin ]; then
     export PATH="$PATH:/usr/local/go/bin"
 fi
 
+if [ -f $(which xclip) ]; then 
+    alias pbcopy='xclip -selection clipboard'
+    alias pbpaste='xclip -selection clipboard -o'
+else 
+    echo "xclip not installed, not setting pbcopy alias."
+fi
+
 #eval "(ssh-agent -s)"
 #ssh-add ~/.ssh/hostkey
 
@@ -30,6 +37,7 @@ export ANSIBLE_VAULT_PASSWORD_FILE=$HOME/.ssh/vault.txt
 #source $HOME/.cargo/env
 
 export EDITOR=$(which vim)
+alias apt_reinstall='for each in $(sudo apt list --upgradable |grep -v Listing |cut -f 1 -d "/") ; do sudo apt reinstall -y $each ; done'
 alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t string menu:minimize,maximize,close"
 alias ltcp="sudo lsof -i -sTCP:LISTEN -P"
 export  PATH=~/bin/android-studio/bin:${PATH}
@@ -77,7 +85,7 @@ parse_git_branch() {
 git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ (\1)/'
 }
 
-export PS1="\e[33;1m\u\033[0m\e[32;1m@\e[36;1m\h\e[0m \e[32;1m<\t> \e[33;1m\w\e[0m\e[\033[33m\]\$(parse_git_branch)\[\033[00m\]\n\$ "
+export PS1="\e[90;1m\u\033[0m\e[32;1m@\e[34;1m\h\e[0m \e[32;1m<\t> \e[34;1m\w\e[0m\e[\033[33m\]\$(parse_git_branch)\[\033[00m\]\n\$ "
 export PS2=""
 export PS3=""
 export PS4=""
