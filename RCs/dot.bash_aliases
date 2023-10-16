@@ -2,7 +2,11 @@
 if [ ! -d  /tmp/$USER/Downloads ] ; then 
     mkdir -p /tmp/$USER/Downloads
     echo Directory does not exit
-    bindfs /tmp/$USER $HOME/tmp
+    if [ -f $(which bindfs) ] ; then 
+        bindfs /tmp/$USER $HOME/tmp
+    else 
+    continue
+    fi
 fi
 
 if [ -d ~/bin ]; then
@@ -23,8 +27,8 @@ if [ -d /usr/local/go/bin ]; then
 fi
 
 if [ -f $(which xclip) ]; then 
-    alias pbcopy='xclip -selection clipboard'
-    alias pbpaste='xclip -selection clipboard -o'
+    alias pbcopy_linux='xclip -selection clipboard'
+    alias pbpaste_linux='xclip -selection clipboard -o'
 else 
     echo "xclip not installed, not setting pbcopy alias."
 fi
@@ -77,7 +81,7 @@ man "$cmd" | col -b | awk -v opt="$opt" -v RS= '$0 ~ "(^|,)[[:blank:]]+" opt "([
 }
 
 # Put all local system specific aliases into a ~/.bash_aliases_local file
-if [ -f ~/.bash_alaises_local ]
+if [ -f ~/.bash_aliases_local ]
 then . ~/.bash_aliases_local;
 fi
 
@@ -90,4 +94,6 @@ export PS2=""
 export PS3=""
 export PS4=""
 
-    
+sha256_find() { 
+find "$1" -type f -exec sha256sum -b {} + |  grep -F "$2"
+} 
