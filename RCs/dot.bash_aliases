@@ -9,6 +9,12 @@ if [ ! -d  /tmp/$USER/Downloads ] ; then
     fi
 fi
 
+if [ -d $HOME/airflow ]
+    then export AIRFLOW_HOME=~/airflow
+    else mkdir $HOME/airflow
+        export AIRFLOW_HOME=~/airflow
+fi
+
 if [ -d ~/bin ]; then
         export PATH="$PATH:~/bin"
 fi
