@@ -79,6 +79,7 @@ alias logwatch="tail -f /var/log/messages"
 alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t string menu:minimize,maximize,close"
 alias wget-recursive="wget -r --level=5 -nH -N -np"
 alias ggl="git log --all --decorate --oneline --graph"
+alias snyktest="snyk container test --severity-threshold=high"
 
 manopt() {
 local cmd=$1 opt=$2
@@ -103,3 +104,5 @@ export PS4=""
 sha256_find() { 
 find "$1" -type f -exec sha256sum -b {} + |  grep -F "$2"
 } 
+
+
