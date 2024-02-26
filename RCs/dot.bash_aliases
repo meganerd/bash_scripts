@@ -3,7 +3,7 @@ if [ ! -d  /tmp/$USER/Downloads ] ; then
     mkdir -p /tmp/$USER/Downloads
     echo Directory does not exit
     if [ -f $(which bindfs) ] ; then 
-        bindfs /tmp/$USER $HOME/tmp
+        fusermount -u $HOME/tmp ; bindfs /tmp/$USER $HOME/tmp
     else 
     continue
     fi
