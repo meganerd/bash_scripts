@@ -63,6 +63,7 @@ alias lw="ls -CGa --color=auto"
 alias l='ls $LS_OPTIONS -lA'
 alias stop="/sbin/shutdown -c"
 alias getweather="curl wttr.in"
+alias physicaldisks="sudo fsarchiver probe |& grep -v loop"
 
 # Disabled as the the geektools proxy seems unresponsive
 #alias whois="whois -h whois.geektools.com"
