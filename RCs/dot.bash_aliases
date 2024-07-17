@@ -49,7 +49,7 @@ export ANSIBLE_VAULT_PASSWORD_FILE=$HOME/.ssh/vault.txt
 export EDITOR=$(which vim)
 alias apt_reinstall='for each in $(sudo apt list --upgradable |grep -v Listing |cut -f 1 -d "/") ; do sudo apt reinstall -y $each ; done'
 alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t string menu:minimize,maximize,close"
-alias ltcp="sudo lsof -i -sTCP:LISTEN -P"
+alias ltcp="sudo lsof -i -sTCP:LISTEN -P +c 0"
 export  PATH=~/bin/android-studio/bin:${PATH}
 alias warpspeed='eval "$(starship init bash)"'
 alias physicaldisks="sudo fsarchiver probe |& grep -v loop"
@@ -81,6 +81,7 @@ alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t str
 alias wget-recursive="wget -r --level=5 -nH -N -np"
 alias ggl="git log --all --decorate --oneline --graph"
 alias snyktest="snyk container test --severity-threshold=high"
+alias trimws="sed -i 's/[[:space:]]*$//'"
 
 manopt() {
 local cmd=$1 opt=$2
