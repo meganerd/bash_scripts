@@ -2,11 +2,12 @@
 if [ ! -d  /tmp/$USER/Downloads ] ; then 
     mkdir -p /tmp/$USER/Downloads
     echo Directory does not exit
-    if [ -f $(which bindfs) ] ; then 
+fi
+
+if [ -f $(which bindfs) ] ; then 
         bindfs /tmp/$USER $HOME/tmp
     else 
-    continue
-    fi
+    echo "bindfs not found, please install it."
 fi
 
 if [ -d $HOME/airflow ]
