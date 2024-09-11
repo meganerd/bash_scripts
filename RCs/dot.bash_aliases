@@ -78,7 +78,6 @@ alias dirf='find . -type d | sed -e "s/[^-][^\/]*\//  |/g" -e "s/|\([^ ]\)/|-\1/
 # count files by type - http://www.shell-fu.org/lister.php?id=173
 alias ftype="find ${*-.} -type f | xargs file | awk -F, '\''{print $1}'\'' | awk '\''{$1=NULL;print $0}'\'' | sort | uniq -c | sort -nr"
 alias logwatch="tail -f /var/log/messages"
-alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t string menu:minimize,maximize,close"
 alias wget-recursive="wget -r --level=5 -nH -N -np"
 alias ggl="git log --all --decorate --oneline --graph"
 alias snyktest="snyk container test --severity-threshold=high"
