@@ -65,6 +65,8 @@ alias lw="ls -CGa --color=auto"
 alias l='ls $LS_OPTIONS -lA'
 alias stop="/sbin/shutdown -c"
 alias getweather="curl wttr.in"
+alias ip='ip -color=auto'
+alias tshark='tshark --color'
 
 # Disabled as the the geektools proxy seems unresponsive
 #alias whois="whois -h whois.geektools.com"
