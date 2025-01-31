@@ -2,9 +2,12 @@ let g:airline_powerline_fonts = 1
 let g:airline_theme='papercolor'
 syntax on
 filetype indent on
+set textwidth=0
+set wrapmargin=0
+set wrap
+set linebreak " (optional - breaks by word rather than character)
 set nocompatible
 set ignorecase
-set nowrap
 set is
 set hls
 set noai
