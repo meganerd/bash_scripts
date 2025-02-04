@@ -54,6 +54,8 @@ alias ltcp="sudo lsof -i -sTCP:LISTEN -P +c 0"
 export  PATH=~/bin/android-studio/bin:${PATH}
 alias warpspeed='eval "$(starship init bash)"'
 alias physicaldisks="sudo fsarchiver probe |& grep -v loop"
+alias tss="sudo tailscale status"
+alias tsdu="sudo tailscale down && sudo tailscale up"
 
 # system enhancements
 alias rm='rm -i'
