@@ -54,6 +54,7 @@ alias ltcp="sudo lsof -i -sTCP:LISTEN -P +c 0"
 export  PATH=~/bin/android-studio/bin:${PATH}
 alias warpspeed='eval "$(starship init bash)"'
 alias physicaldisks="sudo fsarchiver probe |& grep -v loop"
+alias tss="sudo tailscale status"
 
 # system enhancements
 alias rm='rm -i'
@@ -65,6 +66,8 @@ alias lw="ls -CGa --color=auto"
 alias l='ls $LS_OPTIONS -lA'
 alias stop="/sbin/shutdown -c"
 alias getweather="curl wttr.in"
+alias ip='ip -color=auto'
+alias tshark='tshark --color'
 
 # Disabled as the the geektools proxy seems unresponsive
 #alias whois="whois -h whois.geektools.com"
