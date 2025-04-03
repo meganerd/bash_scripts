@@ -107,4 +107,10 @@ sha256_find() {
 find "$1" -type f -exec sha256sum -b {} + |  grep -F "$2"
 } 
 
-
+waitforit_wrapper() {
+ if [ -z "$2" ]
+ then SSH_USER="$USER"
+ else SSH_USER="$2" 
+ fi
+    wait-for-it.sh -p 22 -t 90 -h "$1" -- ssh "$1" -l "$SSH_USER"
+}
