@@ -115,5 +115,5 @@ waitforit_wrapper() {
  then SSH_USER="$USER"
  else SSH_USER="$2" 
  fi
-    wait-for-it.sh -p 22 -t 90 -h "$1" -- ssh "$1" -l "$SSH_USER"
+    wait-for-it.sh -p 22 -t 180 -h "$1" -- ssh "$1" -l "$SSH_USER"
 }
