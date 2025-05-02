@@ -32,6 +32,8 @@ endif
 set hidden
 set history=100
 map  :w!<CR>:!aspell check %<CR>:e! %<CR>
+"F3 Toggle search highlighting
+nnoremap <F3> :set hlsearch!<CR>
 "F7 WordProcessorOn
 map <F7> :set linebreak <CR> :set display+=lastline <CR> :set wrap <CR> :setlocal spell spelllang=en_gb <CR>
 "F8 WordProcessorOff
