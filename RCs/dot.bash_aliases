@@ -53,7 +53,7 @@ alias buttons-to-right="gconftool -s /apps/metacity/general/button_layout -t str
 alias ltcp="sudo lsof -i -sTCP:LISTEN -P +c 0"
 export  PATH=~/bin/android-studio/bin:${PATH}
 alias warpspeed='eval "$(starship init bash)"'
-alias physicaldisks="sudo fsarchiver probe |& grep -v loop"
+alias physicaldisks="sudo fsarchiver probe |& grep -v loop | grep -v ram"
 alias tss="sudo tailscale status"
 
 # system enhancements
