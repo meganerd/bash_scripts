@@ -61,9 +61,9 @@ done
 
 # Check if serial port exists
 if [ ! -e "$PORT" ]; then
-    echo "Error: Serial port $PORT does not exist."
+    echo "Warning: Serial port $PORT does not exist."
+    echo "Will attempt to use it anyway in case it's created later."
     echo "Please connect the device or specify a different port with -p option."
-    exit 1
 fi
 
 # Function to send command to monitor
@@ -73,10 +73,25 @@ send_command() {
     local data="$3"
     
     # Format: [Command1][Command2][ ][Set ID][ ][Data][Cr]
-    local command="${cmd1}${cmd2} ${MONITOR_ID} ${data}\r"
+    # The format requires spaces between components and a carriage return at the end
+    # Make sure MONITOR_ID is padded to 2 digits
+    local padded_id=$(printf "%02d" "$MONITOR_ID")
+    local command="${cmd1}${cmd2} ${padded_id} ${data}\r"
+    
+    # For debugging
+    echo "DEBUG: Sending command: ${command}"
+    
+    # Configure serial port before sending
+    if ! stty -F "$PORT" 9600 cs8 -cstopb -parenb 2>/dev/null; then
+        echo "Warning: Failed to configure serial port $PORT"
+        echo "Make sure the device is connected and you have permission to access it."
+    fi
     
     # Send command to serial port
-    echo -ne "$command" > "$PORT"
+    if ! echo -ne "$command" > "$PORT" 2>/dev/null; then
+        echo "Warning: Failed to send command to $PORT"
+        echo "Make sure the device is connected and you have permission to access it."
+    fi
     
     # Wait for response (optional)
     sleep 0.5
@@ -88,44 +103,44 @@ send_command() {
 # Command reference list based on the PDF
 declare -A COMMANDS
 COMMANDS=(
-    ["power"]="ka"
-    ["screen-mute"]="kd"
-    ["input-main"]="xb"
-    ["input-sub"]="xc"
-    ["input-sub2"]="xd"
-    ["input-sub3"]="xe"
-    ["aspect-ratio-main"]="xf"
-    ["aspect-ratio-sub"]="xg"
-    ["aspect-ratio-sub2"]="xh"
-    ["aspect-ratio-sub3"]="xi"
-    ["pbp-pip"]="kn"
-    ["pip-size"]="kp"
-    ["main-sub-change"]="ma"
-    ["picture-mode"]="dx"
-    ["brightness"]="kh"
-    ["contrast"]="kg"
-    ["sharpness"]="kk"
-    ["brightness-stabilization"]="mb"
-    ["super-resolution"]="mc"
-    ["black-level"]="md"
-    ["hdmi-deep-color"]="me"
-    ["dfc"]="mf"
-    ["response-time"]="mg"
-    ["black-stabilizer"]="mh"
-    ["uniformity"]="mi"
-    ["gamma"]="mj"
-    ["color-temp"]="ku"
-    ["red-gain"]="jw"
-    ["green-gain"]="jy"
-    ["blue-gain"]="jz"
-    ["language"]="fi"
-    ["energy-saving"]="mk"
-    ["auto-screen-off"]="mn"
-    ["displayport-version"]="mo"
-    ["osd-lock"]="km"
-    ["reset"]="fk"
-    ["volume-mute"]="ke"
-    ["volume"]="kf"
+    ["power"]="k"
+    ["screen-mute"]="k"
+    ["input-main"]="x"
+    ["input-sub"]="x"
+    ["input-sub2"]="x"
+    ["input-sub3"]="x"
+    ["aspect-ratio-main"]="x"
+    ["aspect-ratio-sub"]="x"
+    ["aspect-ratio-sub2"]="x"
+    ["aspect-ratio-sub3"]="x"
+    ["pbp-pip"]="k"
+    ["pip-size"]="k"
+    ["main-sub-change"]="m"
+    ["picture-mode"]="d"
+    ["brightness"]="k"
+    ["contrast"]="k"
+    ["sharpness"]="k"
+    ["brightness-stabilization"]="m"
+    ["super-resolution"]="m"
+    ["black-level"]="m"
+    ["hdmi-deep-color"]="m"
+    ["dfc"]="m"
+    ["response-time"]="m"
+    ["black-stabilizer"]="m"
+    ["uniformity"]="m"
+    ["gamma"]="m"
+    ["color-temp"]="k"
+    ["red-gain"]="j"
+    ["green-gain"]="j"
+    ["blue-gain"]="j"
+    ["language"]="f"
+    ["energy-saving"]="m"
+    ["auto-screen-off"]="m"
+    ["displayport-version"]="m"
+    ["osd-lock"]="k"
+    ["reset"]="f"
+    ["volume-mute"]="k"
+    ["volume"]="k"
 )
 
 # Data values for commands
