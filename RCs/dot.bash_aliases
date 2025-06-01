@@ -68,6 +68,7 @@ alias stop="/sbin/shutdown -c"
 alias getweather="curl wttr.in"
 alias ip='ip -color=auto'
 alias tshark='tshark --color'
+alias tss='sudo tailscale status'
 
 # Disabled as the the geektools proxy seems unresponsive
 #alias whois="whois -h whois.geektools.com"
