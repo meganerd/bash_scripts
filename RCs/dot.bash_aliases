@@ -75,7 +75,7 @@ alias dus="du -Pachx --max-depth=1 . | sort -h"
 alias sdus="sudo du -Pachx --max-depth=1 . | sort -h"
 alias apt-upgrade="sudo aptitude update ; sudo aptitude dist-upgrade"
 alias h="history | grep "
-alias rdp="rdesktop -g 1280x800 -P -z -r sound:local -r clipboard:PRIMARYCLIPBOARD"
+alias rdp="rdesktop -g 1920x1080 -P -z -r sound:local -r clipboard:PRIMARYCLIPBOARD"
 # directory tree - http://www.shell-fu.org/lister.php?id=209
 alias dirf='find . -type d | sed -e "s/[^-][^\/]*\//  |/g" -e "s/|\([^ ]\)/|-\1/"'
 # count files by type - http://www.shell-fu.org/lister.php?id=173
