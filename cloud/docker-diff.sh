@@ -5,21 +5,53 @@
 # Compare the contents of two Docker images.
 #
 # Usage:
-#   docker-diff alpine:3.4 alpine:3.5
+#   docker-diff [--platform PLATFORM] img1 img2
 #
 
-if [ -z "$2" ]
-then
-  echo "Usage: $0 img1 img2"
+# Default platform
+PLATFORM_VALUE="linux/amd64"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --platform)
+      if [ -z "$2" ]; then
+        echo "Error: --platform requires a value"
+        exit 1
+      fi
+      PLATFORM_VALUE="$2"
+      shift 2
+      ;;
+    *)
+      # Store non-flag arguments
+      if [ -z "$IMAGE_A" ]; then
+        IMAGE_A="$1"
+      elif [ -z "$IMAGE_B" ]; then
+        IMAGE_B="$1"
+      else
+        echo "Error: Too many arguments"
+        echo "Usage: $0 [--platform PLATFORM] img1 img2"
+        exit 1
+      fi
+      shift
+      ;;
+  esac
+done
+
+# Check if we have both images
+if [ -z "$IMAGE_A" ] || [ -z "$IMAGE_B" ]; then
+  echo "Usage: $0 [--platform PLATFORM] img1 img2"
+  echo ""
+  echo "Options:"
+  echo "  --platform PLATFORM    Specify the platform (default: linux/amd64)"
   echo ""
   echo "Example: $0 alpine:3.4 alpine:3.5"
+  echo "Example: $0 --platform linux/arm64 alpine:3.4 alpine:3.5"
   exit 99
 fi
 
-PLATFORM="--platform linux/amd64"
+PLATFORM="--platform $PLATFORM_VALUE"
 tmpdir=$(mktemp -d)
-IMAGE_A=$1
-IMAGE_B=$2
 CONTAINER_A_ID=$(docker create $PLATFORM $IMAGE_A /bin/sh)
 CONTAINER_B_ID=$(docker create $PLATFORM $IMAGE_B /bin/sh)
 
