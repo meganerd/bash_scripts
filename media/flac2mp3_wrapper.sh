@@ -2,6 +2,7 @@
 # flac2mp3_wrapper.sh
 # A wrapper script for flac2mp3.sh that creates a mirror directory structure
 # with -mp3 appended to the directory names.
+# Directories containing MP3 files will be skipped.
 #
 # Usage: flac2mp3_wrapper.sh <input_dir> [<output_base_dir>]
 #
@@ -23,6 +24,9 @@ usage() {
     echo "  <input_dir>        Directory tree containing FLAC files"
     echo "  <output_base_dir>  Optional: Base directory for the mirrored structure"
     echo "                     Default: Same parent directory as input_dir"
+    echo ""
+    echo "Notes:"
+    echo "  - Directories containing MP3 files will be skipped"
     echo ""
     echo "Example:"
     echo "  $(basename "$0") /music/flac"
@@ -98,6 +102,12 @@ done
 # Process each subdirectory with FLAC files
 echo "Processing FLAC files..."
 find "$INPUT_DIR" -type d | while read -r dir; do
+    # Check if this directory contains any MP3 files - if so, skip it
+    if ls "$dir"/*.mp3 >/dev/null 2>&1; then
+        echo "Skipping directory with MP3 files: $dir"
+        continue
+    fi
+    
     # Check if this directory contains any FLAC files
     if ls "$dir"/*.flac >/dev/null 2>&1; then
         # Get the relative path from the input directory
