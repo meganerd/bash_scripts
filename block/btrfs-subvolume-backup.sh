@@ -53,16 +53,16 @@ die () {
     # don't loop on ERR
     trap '' ERR
 
-    rm $lock
+    rm "$lock"
 
     echo "$msg" >&2
     echo >&2
 
     # This is a fancy shell core dumper
-    if echo $msg | grep -q 'Error line .* with status'; then
-	line=`echo $msg | sed 's/.*Error line \(.*\) with status.*/\1/'`
+    if echo "$msg" | grep -q 'Error line .* with status'; then
+	line=$(echo "$msg" | sed 's/.*Error line \(.*\) with status.*/\1/')
 	echo " DIE: Code dump:" >&2
-	nl -ba $0 | grep -3 "\b$line\b" >&2
+	nl -ba "$0" | grep -3 "\b$line\b" >&2
     fi
     
     exit 1
@@ -81,7 +81,7 @@ dest=localhost
 ssh=""
 
 # getopt quotes arguments with ' We use eval to get rid of that
-eval set -- $TEMP
+eval set -- "$TEMP"
 
 while :
 do
@@ -120,7 +120,7 @@ do
 	    ;;
     esac
 done
-[[ $keep < 1 ]] && die "Must keep at least one snapshot for things to work ($keep given)"
+[[ $keep -lt 1 ]] && die "Must keep at least one snapshot for things to work ($keep given)"
 
 DATE="$(date '+%Y%m%d_%H:%M:%S')"
 
@@ -131,7 +131,7 @@ dest_pool="$2"
 # shlock (from inn) does the right thing and grabs a lock for a dead process
 # (it checks the PID in the lock file and if it's not there, it
 # updates the PID with the value given to -p)
-if ! shlock -p $$ -f $lock; then
+if ! shlock -p $$ -f "$lock"; then
     echo "$lock held for $PROG, quitting" >&2
     exit
 fi
@@ -139,7 +139,7 @@ fi
 if [[ -z "$init" ]]; then
     test -e "${vol}_last" \
 	|| die "Cannot sync $vol, ${vol}_last missing. Try --init?"
-    src_snap="$(readlink -e ${vol}_last)"
+    src_snap="$(readlink -e "${vol}_last")"
 fi
 src_newsnap="${vol}_ro.$DATE"
 src_newsnaprw="${vol}_rw.$DATE"
@@ -166,32 +166,31 @@ btrfs subvolume snapshot "$src_newsnap" "$src_newsnaprw"
 $ssh btrfs subvolume snapshot "$dest_pool/$src_newsnap" "$dest_pool/$src_newsnaprw"
 
 # Keep track of the last snapshot to send a diff against.
-ln -snf $src_newsnap ${vol}_last
+ln -snf "$src_newsnap" "${vol}_last"
 # The rw version can be used for mounting with subvol=vol_last_rw
-ln -snf $src_newsnaprw ${vol}_last_rw
-$ssh ln -snf $src_newsnaprw $dest_pool/${vol}_last_rw
+ln -snf "$src_newsnaprw" "${vol}_last_rw"
+$ssh ln -snf "$src_newsnaprw" "$dest_pool/${vol}_last_rw"
 
 # How many snapshots to keep on the source btrfs pool (both read
 # only and read-write).
-ls -rd ${vol}_ro* | tail -n +$(( $keep + 1 ))| while read snap
+ls -rd "${vol}"_ro* | tail -n +$(( keep + 1 ))| while read -r snap
 do
     btrfs subvolume delete "$snap"
 done
-ls -rd ${vol}_rw* | tail -n +$(( $keep + 1 ))| while read snap
+ls -rd "${vol}"_rw* | tail -n +$(( keep + 1 ))| while read -r snap
 do
     btrfs subvolume delete "$snap"
 done
 
 # Same thing for destination (assume the same number of snapshots to keep,
 # you can change this if you really want).
-$ssh ls -rd $dest_pool/${vol}_ro* | tail -n +$(( $keep + 1 ))| while read snap
+$ssh ls -rd "$dest_pool/${vol}_ro*" | tail -n +$(( keep + 1 ))| while read -r snap
 do
     $ssh btrfs subvolume delete "$snap"
 done
-$ssh ls -rd $dest_pool/${vol}_rw* | tail -n +$(( $keep + 1 ))| while read snap
+$ssh ls -rd "$dest_pool/${vol}_rw*" | tail -n +$(( keep + 1 ))| while read -r snap
 do
     $ssh btrfs subvolume delete "$snap"
 done
 
-rm $lock
-
+rm "$lock"

@@ -5,10 +5,7 @@ NUsers=${1:-15}
 
 TopUsers()
 {
-pflogsumm --iso_date_time  /var/log/mail.log | grep -A $NUsers "Senders by message count"
+pflogsumm --iso_date_time  /var/log/mail.log | grep -A "$NUsers" "Senders by message count"
 }
 
 TopUsers
-
-
-

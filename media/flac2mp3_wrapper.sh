@@ -86,7 +86,7 @@ fi
 echo "Creating mirror directory structure..."
 find "$INPUT_DIR" -type d | while read -r dir; do
     # Get the relative path from the input directory
-    rel_path="${dir#$INPUT_DIR/}"
+    rel_path="${dir#"$INPUT_DIR"/}"
     
     # Skip the root directory
     if [ "$rel_path" = "$INPUT_DIR" ] || [ -z "$rel_path" ]; then
@@ -111,7 +111,7 @@ find "$INPUT_DIR" -type d | while read -r dir; do
     # Check if this directory contains any FLAC files
     if ls "$dir"/*.flac >/dev/null 2>&1; then
         # Get the relative path from the input directory
-        rel_path="${dir#$INPUT_DIR/}"
+        rel_path="${dir#"$INPUT_DIR"/}"
         
         # Determine the corresponding output directory
         if [ -z "$rel_path" ]; then
@@ -126,10 +126,7 @@ find "$INPUT_DIR" -type d | while read -r dir; do
         echo "Output directory: $output_subdir"
         
         # Call flac2mp3.sh to convert the files
-        "$FLAC2MP3_SCRIPT" --in "$dir" --out "$output_subdir"
-        
-        # Check the return code
-        if [ $? -ne 0 ]; then
+        if ! "$FLAC2MP3_SCRIPT" --in "$dir" --out "$output_subdir"; then
             echo "WARNING: flac2mp3.sh reported an error for directory: $dir" >&2
         fi
     fi

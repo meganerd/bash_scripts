@@ -1,0 +1,10 @@
+# Shellcheck configuration file
+# Exclude warnings about the shebang "#!/usr/bin/env bash"
+disable=SC2096
+
+# Disable warnings about array assignment without explicit declaration
+# This is common in bash scripts and generally safe
+disable=SC2034
+
+# Allow non-constant source paths - common in scripts
+disable=SC1090,SC1091

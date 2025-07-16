@@ -4,7 +4,7 @@
 # crontab for logging.
 
 reboot_interval="5"
-current_date="`date`"
+current_date="$(date)"
 
 if [ -f /var/run/reboot-required ]
       	then echo "Reboot required at $current_date, will reboot in $reboot_interval minutes." ;

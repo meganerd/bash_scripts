@@ -147,7 +147,7 @@ while [ $# -gt 0 ]; do
 done
 
 # Check that required parameters are provided
-if [ -z "$INPUTDIR" -o -z "$OUTPUTDIR" ]; then
+if [ -z "$INPUTDIR" ] || [ -z "$OUTPUTDIR" ]; then
   echo "ERROR: Both --in and --out parameters are required" >&2
   echo "Usage: flac2mp3 --in <input-dir> --out <output-dir> [--cbr <bitrate>|--vbr <quality>]" >&2
   exit 1
@@ -167,9 +167,9 @@ WAV="$WORK/track.wav"
 TAGS="$WORK/track.tags"
 COVER="$WORK/track.jpg"
 # Get absolute directory paths
-cd "$INPUTDIR"
+cd "$INPUTDIR" || exit
 INPUTDIR="$PWD"
-cd "$OLDPWD"
+cd "$OLDPWD" || exit
 # Create output directory if it doesn't exist
 if [ ! -d "$OUTPUTDIR" ]; then
   mkdir -p "$OUTPUTDIR"
@@ -179,7 +179,7 @@ if [ ! -d "$OUTPUTDIR" ]; then
   fi
 fi
 
-cd "$OUTPUTDIR"
+cd "$OUTPUTDIR" || exit
 OUTPUTDIR="$PWD"
 # Setup work directory
 rm -rf "$WORK"
@@ -201,8 +201,10 @@ process_file() {
   local TAGS="$WORK/track.tags"
   local COVER="$WORK/track.jpg"
   
-  local filedir="$(dirname "$filepath")"
-  local filename="$(basename "$filepath")"
+  local filedir
+  local filename
+  filedir="$(dirname "$filepath")"
+  filename="$(basename "$filepath")"
   
   # Setup work directory for this file
   rm -rf "$WORK"
@@ -260,12 +262,11 @@ process_file() {
     # Decode FLAC (loop until success or MAXFAILS reached)
     local attempt=0
     local success=0
-    while (( ! $success )) && (( $attempt < $MAXFAILS )); do
-      let attempt++
+    while (( ! success )) && (( attempt < MAXFAILS )); do
+      (( attempt++ ))
       rm -f "$ERR" "$WAV"
       echo -n "Decoding attempt $attempt: "
-      $FLAC -sd -o "$WAV" "$INPUTDIR/$filepath.flac" 2> "$ERR"
-      if (( ! $? )) && [ ! -s "$ERR" ]; then
+      if $FLAC -sd -o "$WAV" "$INPUTDIR/$filepath.flac" 2> "$ERR" && [ ! -s "$ERR" ]; then
         success=1
         echo "OK"
       else
@@ -275,25 +276,22 @@ process_file() {
       fi
     done
     
-    if (( $attempt > $MAXFAILS )); then
+    if (( attempt > MAXFAILS )); then
       echo "$MAXFAILS decode attempts failed, aborting"
       cat "$ERR"
       return 1
     fi
     
     # Encode MP3
-    $LAME $LAME_OPTS  --tt "$TITLE" --ta "$ARTIST" --tl "$ALBUM" \
+    if ! $LAME "$LAME_OPTS" --tt "$TITLE" --ta "$ARTIST" --tl "$ALBUM" \
     --tn "$TRACKNUMBER" --tg "$GENRE" --ty "$DATE" \
     --ti "$COVER" \
-    "$WAV" "$OUTPUTDIR/$filepath.mp3"
-    
-    if (( $? )); then
+    "$WAV" "$OUTPUTDIR/$filepath.mp3"; then
       echo ""
       echo "Encode failed, retrying sans genre"
-      $LAME $LAME_OPTS --tt "$TITLE" --ta "$ARTIST" --tl "$ALBUM" \
+      if ! $LAME "$LAME_OPTS" --tt "$TITLE" --ta "$ARTIST" --tl "$ALBUM" \
       --tn "$TRACKNUMBER" --ty "$DATE" \
-      "$WAV" "$OUTPUTDIR/$filepath.mp3"
-      if (( $? )); then
+      "$WAV" "$OUTPUTDIR/$filepath.mp3"; then
         echo ""
         echo "Encode failed, aborting"
         return 1
@@ -322,10 +320,10 @@ process_file() {
 }
 
 # Get input file list
-cd "$INPUTDIR"
+cd "$INPUTDIR" || exit
 OLDIFS="$IFS"
 IFS=$'\n'
-FLAC_FILES=($(find . -type f -name '*.flac' -print | sort | sed -e 's/^\.\///' -e 's/\.flac$//'))
+mapfile -t FLAC_FILES < <(find . -type f -name '*.flac' -print | sort | sed -e 's/^\.\///' -e 's/\.flac$//')
 IFS="$OLDIFS"
 
 # Process files in parallel
@@ -349,8 +347,10 @@ wait
 # Function to process artwork
 process_artwork() {
   local filepath="$1"
-  local filedir="$(dirname "$filepath")"
-  local filename="$(basename "$filepath")"
+  local filedir
+  local filename
+  filedir="$(dirname "$filepath")"
+  filename="$(basename "$filepath")"
   
   if [ ! -d "$OUTPUTDIR/$filedir" ]; then
     mkdir -p "$OUTPUTDIR/$filedir"
@@ -390,10 +390,10 @@ if [ "$COPY_ARTWORK" == "true" ]; then
   echo -n "Copying artwork: "
   
   # Get artwork file list
-  cd "$INPUTDIR"
+  cd "$INPUTDIR" || exit
   OLDIFS="$IFS"
   IFS=$'\n'
-  ARTWORK_FILES=($(find . -type f -name '*.jpg' -print | sort | sed -e 's/^\.\///'))
+  mapfile -t ARTWORK_FILES < <(find . -type f -name '*.jpg' -print | sort | sed -e 's/^\.\///')
   IFS="$OLDIFS"
   
   # Process artwork in parallel

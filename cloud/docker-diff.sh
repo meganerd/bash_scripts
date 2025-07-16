@@ -52,14 +52,14 @@ fi
 
 PLATFORM="--platform $PLATFORM_VALUE"
 tmpdir=$(mktemp -d)
-CONTAINER_A_ID=$(docker create $PLATFORM $IMAGE_A /bin/sh)
-CONTAINER_B_ID=$(docker create $PLATFORM $IMAGE_B /bin/sh)
+CONTAINER_A_ID=$(docker create "$PLATFORM" "$IMAGE_A" /bin/sh)
+CONTAINER_B_ID=$(docker create "$PLATFORM" "$IMAGE_B" /bin/sh)
 
 set -e
-docker export "${CONTAINER_A_ID}" > ${tmpdir}/A.tar
-docker export "${CONTAINER_B_ID}" > ${tmpdir}/B.tar
-mkdir -p ${tmpdir}/${IMAGE_A} && tar -xf ${tmpdir}/A.tar -C ${tmpdir}/${IMAGE_A} --exclude='./etc/mtab' --exclude='./proc' --exclude='./dev'
-mkdir -p ${tmpdir}/${IMAGE_B} && tar -xf ${tmpdir}/B.tar -C ${tmpdir}/${IMAGE_B} --exclude='./etc/mtab' --exclude='./proc' --exclude='./dev'
+docker export "${CONTAINER_A_ID}" > "${tmpdir}"/A.tar
+docker export "${CONTAINER_B_ID}" > "${tmpdir}"/B.tar
+mkdir -p "${tmpdir}/${IMAGE_A}" && tar -xf "${tmpdir}"/A.tar -C "${tmpdir}/${IMAGE_A}" --exclude='./etc/mtab' --exclude='./proc' --exclude='./dev'
+mkdir -p "${tmpdir}/${IMAGE_B}" && tar -xf "${tmpdir}"/B.tar -C "${tmpdir}/${IMAGE_B}" --exclude='./etc/mtab' --exclude='./proc' --exclude='./dev'
 (
     cd ${tmpdir}
     diff --unified -arq ${IMAGE_A} ${IMAGE_B} 2>&1 | grep -v "No such file or directory" | grep -v "is a character special file" | grep -v "is a block special file" | tee ${tmpdir}/diff
