@@ -1,2 +1,3 @@
 *.retry
 .history/*
+__pycache__/

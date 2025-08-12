@@ -1,0 +1,239 @@
+#!/bin/bash
+# Jenkins Job Exporter Wrapper Script
+
+set -euo pipefail
+
+# Default values
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PYTHON_SCRIPT="${SCRIPT_DIR}/jenkins_job_exporter.py"
+DEFAULT_OUTPUT_DIR="jenkins_export_$(date +%Y%m%d_%H%M%S)"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+usage() {
+    cat << EOF
+Jenkins Job Exporter - Bash Wrapper
+
+USAGE:
+    $0 [OPTIONS] JENKINS_URL PARAMETER
+
+ARGUMENTS:
+    JENKINS_URL     Jenkins server URL (e.g., http://jenkins.example.com)
+    PARAMETER       Parameter name to group builds by (e.g., environment, branch)
+
+OPTIONS:
+    -n, --max-jobs NUM      Maximum number of jobs to process
+    -b, --max-builds NUM    Maximum builds per job (default: 100)
+    -f, --filter PATTERN    Filter jobs by name pattern
+    -o, --output DIR        Output directory (default: timestamped directory)
+    -d, --delay SECONDS     Delay between API calls (default: 0.1)
+    --netrc FILE            Path to netrc file for authentication (default: ~/.netrc)
+    --export-configs        Export job configuration XML files
+    --export-build-data     Export detailed build data JSON files
+    -v, --verbose           Verbose output
+    -h, --help              Show this help
+
+EXAMPLES:
+    # Basic usage - analyze 'environment' parameter for all jobs
+    $0 http://jenkins.example.com environment
+
+    # Limit to 50 jobs and analyze 'branch' parameter
+    $0 -n 50 http://jenkins.example.com branch
+
+    # Filter jobs containing 'deploy' and export configs
+    $0 -f deploy --export-configs http://jenkins.example.com environment
+
+    # Comprehensive export with custom output directory
+    $0 -n 100 -b 200 -o my_analysis --export-configs --export-build-data -v \\
+       http://jenkins.example.com version
+
+AUTHENTICATION:
+    Add credentials to ~/.netrc:
+    machine jenkins.example.com
+    login your-username
+    password your-api-token
+
+EOF
+}
+
+error() {
+    echo -e "${RED}ERROR: $1${NC}" >&2
+    exit 1
+}
+
+info() {
+    echo -e "${BLUE}INFO: $1${NC}"
+}
+
+success() {
+    echo -e "${GREEN}SUCCESS: $1${NC}"
+}
+
+warning() {
+    echo -e "${YELLOW}WARNING: $1${NC}"
+}
+
+check_dependencies() {
+    # Check if Python script exists
+    if [[ ! -f "$PYTHON_SCRIPT" ]]; then
+        error "Python script not found: $PYTHON_SCRIPT"
+    fi
+
+    # Check Python and required modules
+    if ! command -v python3 &> /dev/null; then
+        error "python3 is required but not installed"
+    fi
+
+    # Check for required Python modules
+    python3 -c "import requests, netrc" 2>/dev/null || \
+        error "Required Python modules missing. Install with: pip3 install requests"
+}
+
+# Parse command line arguments
+ARGS=()
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -n|--max-jobs)
+            ARGS+=("--max-jobs" "$2")
+            shift 2
+            ;;
+        -b|--max-builds)
+            ARGS+=("--max-builds" "$2")
+            shift 2
+            ;;
+        -f|--filter)
+            ARGS+=("--filter" "$2")
+            shift 2
+            ;;
+        -o|--output)
+            ARGS+=("--output" "$2")
+            shift 2
+            ;;
+        -d|--delay)
+            ARGS+=("--delay" "$2")
+            shift 2
+            ;;
+        --netrc)
+            ARGS+=("--netrc" "$2")
+            shift 2
+            ;;
+        --export-configs)
+            ARGS+=("--export-configs")
+            shift
+            ;;
+        --export-build-data)
+            ARGS+=("--export-build-data")
+            shift
+            ;;
+        -v|--verbose)
+            ARGS+=("--verbose")
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -*)
+            error "Unknown option: $1"
+            ;;
+        *)
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# Check for required positional arguments
+if [[ ${#ARGS[@]} -lt 2 ]]; then
+    echo "Missing required arguments"
+    echo
+    usage
+    exit 1
+fi
+
+JENKINS_URL="${ARGS[0]}"
+PARAMETER="${ARGS[1]}"
+
+# Validate Jenkins URL
+if [[ ! "$JENKINS_URL" =~ ^https?:// ]]; then
+    error "Invalid Jenkins URL: $JENKINS_URL (must start with http:// or https://)"
+fi
+
+# Set default output directory if not specified
+OUTPUT_SET=false
+for arg in "${ARGS[@]}"; do
+    if [[ "$arg" == "--output" ]]; then
+        OUTPUT_SET=true
+        break
+    fi
+done
+
+if [[ "$OUTPUT_SET" == false ]]; then
+    ARGS+=("--output" "$DEFAULT_OUTPUT_DIR")
+    info "Using default output directory: $DEFAULT_OUTPUT_DIR"
+fi
+
+# Pre-flight checks
+info "Checking dependencies..."
+check_dependencies
+
+info "Checking Jenkins connectivity..."
+if ! curl -s --max-time 10 "$JENKINS_URL" > /dev/null; then
+    warning "Cannot reach Jenkins at $JENKINS_URL (continuing anyway)"
+fi
+
+info "Checking for netrc credentials..."
+
+# Determine which netrc file to check
+NETRC_FILE="~/.netrc"
+for i in "${!ARGS[@]}"; do
+    if [[ "${ARGS[$i]}" == "--netrc" ]] && [[ $((i+1)) -lt ${#ARGS[@]} ]]; then
+        NETRC_FILE="${ARGS[$((i+1))]}"
+        break
+    fi
+done
+
+# Expand tilde if present
+NETRC_FILE_EXPANDED="${NETRC_FILE/#\~/$HOME}"
+
+if [[ ! -f "$NETRC_FILE_EXPANDED" ]]; then
+    warning "Netrc file not found: $NETRC_FILE - authentication may fail"
+else
+    JENKINS_HOST=$(echo "$JENKINS_URL" | sed -E 's|https?://([^/]+).*|\1|')
+    if ! grep -q "machine $JENKINS_HOST" "$NETRC_FILE_EXPANDED"; then
+        warning "No credentials found for $JENKINS_HOST in $NETRC_FILE"
+    else
+        success "Found credentials for $JENKINS_HOST in $NETRC_FILE"
+    fi
+fi
+
+# Execute the Python script
+info "Starting Jenkins job export..."
+echo "Parameters: ${ARGS[*]}"
+echo
+
+if python3 "$PYTHON_SCRIPT" "${ARGS[@]}"; then
+    success "Jenkins job export completed successfully!"
+    
+    # Show output directory contents
+    OUTPUT_DIR=""
+    for i in "${!ARGS[@]}"; do
+        if [[ "${ARGS[$i]}" == "--output" ]] && [[ $((i+1)) -lt ${#ARGS[@]} ]]; then
+            OUTPUT_DIR="${ARGS[$((i+1))]}"
+            break
+        fi
+    done
+    
+    if [[ -n "$OUTPUT_DIR" && -d "$OUTPUT_DIR" ]]; then
+        echo
+        info "Output files:"
+        ls -la "$OUTPUT_DIR"
+    fi
+else
+    error "Jenkins job export failed"
+fi
