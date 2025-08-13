@@ -2,63 +2,90 @@
 
 Export Jenkins jobs and analyze build statistics grouped by parameter values.
 
-## Files
+## Installation
 
-- `jenkins_job_exporter.py` - Main Python script
-- `jenkins-export` - Bash wrapper script
-- `README.md` - This file
+### With pipx (Recommended)
+```bash
+# Install pipx if you don't have it
+python3 -m pip install --user pipx
+python3 -m pipx ensurepath
 
-## Setup
+# Install jenkins-stats
+pipx install jenkins-stats
 
-1. **Install Python dependencies:**
-   ```bash
-   pip3 install requests
-   ```
+# Or install from local source
+pipx install .
+```
 
-2. **Setup authentication in ~/.netrc:**
-   ```bash
-   cat >> ~/.netrc << EOF
-   machine your-jenkins-server.com
-   login your-username
-   password your-api-token
-   EOF
-   
-   chmod 600 ~/.netrc
-   ```
+### With pip
+```bash
+# Install from PyPI (when published)
+pip install jenkins-stats
+
+# Install from local source
+pip install .
+
+# Install in development mode
+pip install -e .
+```
+
+### Dependencies
+The only runtime dependency is `requests>=2.25.0`, which will be installed automatically.
+
+## Quick Start
+
+After installation, you have two commands available:
+
+- `jenkins-stats` - Direct Python interface
+- `jenkins-export` - Bash-style wrapper with enhanced UX
+
+```bash
+# Basic usage with jenkins-stats
+jenkins-stats http://jenkins.example.com --parameter environment
+
+# Basic usage with jenkins-export (bash-style)
+jenkins-export http://jenkins.example.com environment
+```
 
 ## Usage Examples
 
 ### Basic Usage
 ```bash
 # Analyze 'environment' parameter for all jobs
-./jenkins-export http://jenkins.example.com environment
+jenkins-export http://jenkins.example.com environment
 
-# Analyze first 100 jobs by 'branch' parameter
-./jenkins-export -n 100 http://jenkins.example.com branch
+# Analyze first 100 jobs by 'branch' parameter  
+jenkins-stats http://jenkins.example.com --parameter branch --max-jobs 100
 ```
 
 ### Advanced Usage
 ```bash
 # Filter jobs and export configs
-./jenkins-export -f deploy --export-configs http://jenkins.example.com environment
+jenkins-export -f deploy --export-configs http://jenkins.example.com environment
 
 # Use custom netrc file
-./jenkins-export --netrc ~/my-jenkins-creds http://jenkins.example.com branch
+jenkins-export --netrc ~/my-jenkins-creds http://jenkins.example.com branch
 
 # Comprehensive analysis with custom output
-./jenkins-export -n 500 -b 150 -o my_analysis --export-configs --export-build-data -v \
+jenkins-export -n 500 -b 150 -o my_analysis --export-configs --export-build-data -v \
   http://jenkins.example.com version
 ```
 
-### Direct Python Script Usage
+### Using jenkins-stats (Direct Python Interface)
 ```bash
-# Use Python script directly for more control
-./jenkins_job_exporter.py http://jenkins.example.com \
+# Direct interface with all options
+jenkins-stats http://jenkins.example.com \
   --parameter environment --max-jobs 100 --verbose --delay 0.2
 
-# Use custom netrc file with Python script
-./jenkins_job_exporter.py http://jenkins.example.com \
+# Use custom netrc file
+jenkins-stats http://jenkins.example.com \
   --parameter branch --netrc ~/alt-creds/.netrc --max-builds 50
+```
+
+### Module Usage
+```bash
+# Run as Python module
+python -m jenkins_stats http://jenkins.example.com --parameter environment
 ```
 
 ## Command Line Options
@@ -154,3 +181,59 @@ For meaningful statistics, aim for:
 - At least 30+ builds per parameter value
 - Multiple jobs using the same parameter value
 - Recent build data (consider using --max-builds to limit to recent builds)
+
+## Development
+
+### Setup Development Environment
+```bash
+# Clone/navigate to project directory
+cd jenkins-stats
+
+# Install in development mode with dev dependencies
+pip install -e ".[dev]"
+
+# Or with pipx for isolated environment
+pipx install -e . --include-deps
+```
+
+### Running Tests
+```bash
+# Run tests (when implemented)
+pytest
+
+# Run with coverage
+pytest --cov=jenkins_stats
+
+# Type checking
+mypy jenkins_stats/
+
+# Code formatting
+black jenkins_stats/
+```
+
+### Project Structure
+```
+jenkins-stats/
+├── jenkins_stats/          # Main package
+│   ├── __init__.py         # Package initialization
+│   ├── __main__.py         # Module entry point
+│   ├── exporter.py         # Core functionality
+│   └── cli.py              # Bash-style CLI wrapper
+├── pyproject.toml          # Project configuration
+├── requirements.txt        # Runtime dependencies
+├── LICENSE                 # MIT License
+├── README.md               # This file
+└── .gitignore             # Git ignore patterns
+```
+
+### Building and Publishing
+```bash
+# Build the package
+python -m build
+
+# Install locally from built package
+pip install dist/jenkins-stats-*.whl
+
+# Upload to PyPI (maintainers only)
+python -m twine upload dist/*
+```
