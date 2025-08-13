@@ -25,7 +25,23 @@ class JenkinsJobExporter:
         self.delay = delay
         self.netrc_file = netrc_file or os.path.expanduser('~/.netrc')
         self.session = requests.Session()
+        self._validate_jenkins_url()
         self._setup_auth()
+
+    def _validate_jenkins_url(self):
+        """Validate that the Jenkins URL looks correct"""
+        # Check for common mistakes in URL
+        if '/job/' in self.jenkins_url:
+            print(f"⚠️  Warning: The URL contains '/job/' which suggests it points to a specific job.")
+            print(f"   This tool needs the Jenkins server root URL, not a job URL.")
+            print(f"   Example: http://jenkins.example.com (not http://jenkins.example.com/job/my-job)")
+            print(f"   Continuing anyway, but this may fail...\n")
+        
+        if self.jenkins_url.endswith('/view/'):
+            print(f"⚠️  Warning: The URL appears to point to a Jenkins view.")
+            print(f"   This tool needs the Jenkins server root URL.")
+            print(f"   Example: http://jenkins.example.com (not http://jenkins.example.com/view/my-view)")
+            print(f"   Continuing anyway, but this may fail...\n")
 
     def _setup_auth(self):
         """Setup authentication from netrc file"""
@@ -53,10 +69,39 @@ class JenkinsJobExporter:
         url = f"{self.jenkins_url}/api/json"
         params = {'tree': 'jobs[name,url,fullName]'}
         
-        response = self.session.get(url, params=params)
-        response.raise_for_status()
-        
-        jobs = response.json()['jobs']
+        try:
+            response = self.session.get(url, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            # Check if this is a Jenkins server root or a specific job/project
+            if 'jobs' not in data:
+                if 'name' in data and 'builds' in data:
+                    # This looks like a single job URL, not Jenkins root
+                    raise ValueError(
+                        f"The URL appears to point to a specific Jenkins job, not the Jenkins server root.\n"
+                        f"Expected: http://jenkins.example.com\n"
+                        f"Got: {self.jenkins_url}\n"
+                        f"Please use the Jenkins server root URL instead, or use --single-job mode."
+                    )
+                else:
+                    # Unknown structure
+                    available_keys = list(data.keys()) if isinstance(data, dict) else "non-dict response"
+                    raise ValueError(
+                        f"Unexpected API response structure. Expected 'jobs' key but got: {available_keys}\n"
+                        f"Make sure you're using the Jenkins server root URL (e.g., http://jenkins.example.com)\n"
+                        f"Response: {data}"
+                    )
+            
+            jobs = data['jobs']
+            
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(f"Failed to connect to Jenkins at {url}: {e}")
+        except ValueError as e:
+            raise e
+        except Exception as e:
+            raise RuntimeError(f"Failed to parse Jenkins API response: {e}")
         
         # Apply filter if specified
         if job_filter:
@@ -70,6 +115,225 @@ class JenkinsJobExporter:
         
         print(f"Found {len(jobs)} jobs to process")
         return jobs
+
+    def analyze_single_job(self, target_parameter: str, max_builds: int = 100) -> Dict:
+        """Analyze a single job by its direct URL"""
+        print(f"Analyzing single job: {self.jenkins_url}")
+        
+        # Validate that this looks like a job URL
+        if '/job/' not in self.jenkins_url:
+            raise ValueError(
+                f"For single job analysis, the URL must contain '/job/'.\n"
+                f"Example: http://jenkins.example.com/job/my-project\n"
+                f"Got: {self.jenkins_url}"
+            )
+        
+        # Extract job name from URL for display
+        job_name = self.jenkins_url.split('/job/')[-1].split('/')[0]
+        
+        try:
+            # Get job data directly
+            url = f"{self.jenkins_url}/api/json"
+            params = {
+                'tree': f'name,builds[number,result,duration,timestamp,actions[parameters[name,value]]]{{0,{max_builds}}}'
+            }
+            response = self.session.get(url, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if 'builds' not in data:
+                raise ValueError(
+                    f"No builds found for job at {self.jenkins_url}\n"
+                    f"Make sure the URL points to a valid Jenkins job."
+                )
+            
+            builds = data['builds']
+            job_display_name = data.get('name', job_name)
+            
+            print(f"Found {len(builds)} builds for job '{job_display_name}'")
+            print(f"Looking for parameter: '{target_parameter}'")
+            
+            # Process builds to extract parameter statistics
+            param_stats = {}
+            processed_builds = 0
+            
+            for build in builds:
+                param_value = self.extract_parameter_value(build, target_parameter)
+                if param_value is not None:
+                    if param_value not in param_stats:
+                        param_stats[param_value] = {
+                            'total_builds': 0,
+                            'successful_builds': 0,
+                            'failed_builds': 0,
+                            'unstable_builds': 0,
+                            'aborted_builds': 0,
+                            'total_duration': 0,
+                            'build_numbers': [],
+                            'jobs': {job_display_name}
+                        }
+                    
+                    stats = param_stats[param_value]
+                    stats['total_builds'] += 1
+                    stats['build_numbers'].append(build.get('number', 'unknown'))
+                    processed_builds += 1
+                    
+                    result = build.get('result', '').upper()
+                    if result == 'SUCCESS':
+                        stats['successful_builds'] += 1
+                    elif result == 'FAILURE':
+                        stats['failed_builds'] += 1
+                    elif result == 'UNSTABLE':
+                        stats['unstable_builds'] += 1
+                    elif result == 'ABORTED':
+                        stats['aborted_builds'] += 1
+                    
+                    duration = build.get('duration', 0)
+                    if duration and duration > 0:
+                        stats['total_duration'] += duration
+            
+            print(f"Processed {processed_builds} builds with parameter '{target_parameter}'")
+            
+            if not param_stats:
+                print(f"⚠️  No builds found with parameter '{target_parameter}'")
+                print(f"   Make sure the parameter name is correct and case-sensitive.")
+                
+                # Show available parameters from the first few builds
+                print("\n   Available parameters in recent builds:")
+                for i, build in enumerate(builds[:3]):
+                    if i == 0:
+                        print(f"     Build #{build.get('number', 'unknown')}:")
+                    params = []
+                    for action in build.get('actions', []):
+                        if action and 'parameters' in action:
+                            for param in action['parameters']:
+                                if param.get('name') not in params:
+                                    params.append(param.get('name'))
+                    if params:
+                        print(f"       {', '.join(params)}")
+                        break
+                    elif i == 2:
+                        print("       No parameters found in recent builds")
+            
+            return param_stats
+            
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(f"Failed to connect to Jenkins job at {self.jenkins_url}: {e}")
+        except Exception as e:
+            raise RuntimeError(f"Failed to analyze Jenkins job: {e}")
+
+    def export_jobs_with_stats(self, 
+                             output_dir: str, 
+                             target_parameter: str,
+                             max_jobs: Optional[int] = None,
+                             max_builds: int = 100,
+                             job_filter: Optional[str] = None,
+                             export_configs: bool = False,
+                             export_build_data: bool = False,
+                             single_job: bool = False) -> Dict:
+        """Export jobs and collect statistics grouped by parameter"""
+        
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if single_job:
+            # Analyze single job mode
+            aggregated_stats = self.analyze_single_job(target_parameter, max_builds)
+            
+            if export_build_data and aggregated_stats:
+                # Export build data for single job
+                job_name = self.jenkins_url.split('/job/')[-1].split('/')[0]
+                builds_data = self.get_job_builds_direct()
+                builds_file = output_path / f"{job_name}_builds.json"
+                builds_file.write_text(json.dumps(builds_data, indent=2), encoding='utf-8')
+            
+        else:
+            # Multi-job analysis mode (original behavior)
+            jobs = self.get_all_jobs(job_filter, max_jobs)
+            
+            if not jobs:
+                print("No jobs found matching criteria")
+                return {}
+            
+            aggregated_stats = {}
+            processed_count = 0
+            
+            print(f"\nProcessing {len(jobs)} jobs...")
+            print(f"Looking for parameter: '{target_parameter}'")
+            print(f"Max builds per job: {max_builds}")
+            
+            for i, job in enumerate(jobs, 1):
+                job_name = job['name']
+                print(f"[{i:3d}/{len(jobs)}] Processing: {job_name}")
+                
+                # Add delay to be nice to Jenkins
+                if self.delay > 0:
+                    time.sleep(self.delay)
+                
+                try:
+                    # Export job configuration if requested
+                    if export_configs:
+                        config_xml = self.get_job_config(job_name)
+                        config_file = output_path / f"{job_name}_config.xml"
+                        config_file.write_text(config_xml, encoding='utf-8')
+                    
+                    # Process job builds
+                    job_stats = self.process_job(job_name, target_parameter, max_builds)
+                    
+                    # Export build data if requested
+                    if export_build_data and job_stats:
+                        builds_data = self.get_job_builds(job_name, max_builds)
+                        builds_file = output_path / f"{job_name}_builds.json"
+                        builds_file.write_text(json.dumps(builds_data, indent=2), encoding='utf-8')
+                    
+                    # Merge job stats into aggregated stats
+                    for param_value, stats in job_stats.items():
+                        if param_value not in aggregated_stats:
+                            aggregated_stats[param_value] = {
+                                'total_builds': 0,
+                                'successful_builds': 0,
+                                'failed_builds': 0,
+                                'unstable_builds': 0,
+                                'aborted_builds': 0,
+                                'total_duration': 0,
+                                'jobs': set()
+                            }
+                        
+                        agg_stats = aggregated_stats[param_value]
+                        agg_stats['total_builds'] += stats['total_builds']
+                        agg_stats['successful_builds'] += stats['successful_builds']
+                        agg_stats['failed_builds'] += stats['failed_builds']
+                        agg_stats['unstable_builds'] += stats['unstable_builds']
+                        agg_stats['aborted_builds'] += stats['aborted_builds']
+                        agg_stats['total_duration'] += stats['total_duration']
+                        agg_stats['jobs'].update(stats['jobs'])
+                    
+                    if job_stats:
+                        processed_count += 1
+                        
+                except Exception as e:
+                    print(f"    ERROR: {e}")
+                    continue
+            
+            print(f"\nSuccessfully processed {processed_count}/{len(jobs)} jobs")
+        
+        if aggregated_stats:
+            self.save_statistics(aggregated_stats, output_path, target_parameter)
+            self.print_summary(aggregated_stats)
+        else:
+            print(f"No builds found with parameter '{target_parameter}'")
+        
+        return aggregated_stats
+
+    def get_job_builds_direct(self, max_builds: int = 100) -> Dict:
+        """Get job build history directly from job URL"""
+        url = f"{self.jenkins_url}/api/json"
+        params = {
+            'tree': f'builds[number,result,duration,timestamp,actions[parameters[name,value]]]{{0,{max_builds}}}'
+        }
+        response = self.session.get(url, params=params)
+        response.raise_for_status()
+        return response.json()
 
     def get_job_config(self, job_name: str) -> str:
         """Get job configuration XML"""
@@ -237,7 +501,19 @@ class JenkinsJobExporter:
         stats_for_json = {}
         for param_value, stats in job_stats.items():
             stats_copy = stats.copy()
-            stats_copy['jobs'] = list(stats['jobs'])
+            
+            # Handle both multi-job and single-job formats
+            if 'jobs' in stats and isinstance(stats['jobs'], set):
+                stats_copy['jobs'] = list(stats['jobs'])
+            elif 'jobs' in stats:
+                stats_copy['jobs'] = list(stats['jobs']) if isinstance(stats['jobs'], (list, set)) else [str(stats['jobs'])]
+            else:
+                stats_copy['jobs'] = []
+            
+            # Add build numbers if available (single job mode)
+            if 'build_numbers' in stats:
+                stats_copy['build_numbers'] = stats['build_numbers']
+            
             stats_copy['success_rate'] = (stats['successful_builds'] / stats['total_builds'] 
                                         if stats['total_builds'] > 0 else 0)
             stats_copy['failure_rate'] = (stats['failed_builds'] / stats['total_builds'] 
@@ -255,11 +531,22 @@ class JenkinsJobExporter:
         csv_file = output_path / f"statistics_by_{parameter_name}.csv"
         with csv_file.open('w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow([
-                'Parameter_Value', 'Total_Builds', 'Successful_Builds', 'Failed_Builds',
-                'Unstable_Builds', 'Aborted_Builds', 'Success_Rate', 'Failure_Rate',
-                'Avg_Duration_Minutes', 'Unique_Jobs', 'Job_List'
-            ])
+            
+            # Determine if we have build numbers (single job mode)
+            has_build_numbers = any('build_numbers' in stats for stats in stats_for_json.values())
+            
+            if has_build_numbers:
+                writer.writerow([
+                    'Parameter_Value', 'Total_Builds', 'Successful_Builds', 'Failed_Builds',
+                    'Unstable_Builds', 'Aborted_Builds', 'Success_Rate', 'Failure_Rate',
+                    'Avg_Duration_Minutes', 'Unique_Jobs', 'Build_Numbers'
+                ])
+            else:
+                writer.writerow([
+                    'Parameter_Value', 'Total_Builds', 'Successful_Builds', 'Failed_Builds',
+                    'Unstable_Builds', 'Aborted_Builds', 'Success_Rate', 'Failure_Rate',
+                    'Avg_Duration_Minutes', 'Unique_Jobs', 'Job_List'
+                ])
             
             # Sort by total builds descending
             sorted_stats = sorted(stats_for_json.items(), 
@@ -267,19 +554,37 @@ class JenkinsJobExporter:
                                 reverse=True)
             
             for param_value, stats in sorted_stats:
-                writer.writerow([
-                    param_value,
-                    stats['total_builds'],
-                    stats['successful_builds'],
-                    stats['failed_builds'],
-                    stats['unstable_builds'],
-                    stats['aborted_builds'],
-                    f"{stats['success_rate']:.2%}",
-                    f"{stats['failure_rate']:.2%}",
-                    f"{stats['avg_duration_min']:.2f}",
-                    len(stats['jobs']),
-                    '; '.join(sorted(stats['jobs']))
-                ])
+                if has_build_numbers:
+                    # Single job mode - show build numbers
+                    build_numbers = ', '.join(map(str, stats.get('build_numbers', [])))
+                    writer.writerow([
+                        param_value,
+                        stats['total_builds'],
+                        stats['successful_builds'],
+                        stats['failed_builds'],
+                        stats['unstable_builds'],
+                        stats['aborted_builds'],
+                        f"{stats['success_rate']:.2%}",
+                        f"{stats['failure_rate']:.2%}",
+                        f"{stats['avg_duration_min']:.2f}",
+                        len(stats['jobs']),
+                        build_numbers
+                    ])
+                else:
+                    # Multi-job mode - show job list
+                    writer.writerow([
+                        param_value,
+                        stats['total_builds'],
+                        stats['successful_builds'],
+                        stats['failed_builds'],
+                        stats['unstable_builds'],
+                        stats['aborted_builds'],
+                        f"{stats['success_rate']:.2%}",
+                        f"{stats['failure_rate']:.2%}",
+                        f"{stats['avg_duration_min']:.2f}",
+                        len(stats['jobs']),
+                        '; '.join(sorted(stats['jobs']))
+                    ])
         
         print(f"\nStatistics saved to:")
         print(f"  JSON: {json_file}")
@@ -326,6 +631,12 @@ def main():
 Examples:
   # Export 100 jobs, analyze by 'environment' parameter
   %(prog)s http://jenkins.example.com -p environment -n 100
+
+  # Analyze a specific job by parameter
+  %(prog)s --single-job http://jenkins.example.com/job/my-project -p environment
+
+  # Analyze nested job
+  %(prog)s --single-job http://jenkins.example.com/job/folder/job/project -p branch
 
   # Filter jobs by name pattern and export configs
   %(prog)s http://jenkins.example.com -p branch -f "deploy" --export-configs
@@ -379,6 +690,10 @@ Authentication:
     parser.add_argument('--netrc', 
                        help='Path to netrc file for authentication (default: ~/.netrc)')
     
+    parser.add_argument('--single-job', 
+                       action='store_true',
+                       help='Analyze a single job instead of all jobs on server (URL must point to specific job)')
+    
     parser.add_argument('-v', '--verbose', 
                        action='store_true',
                        help='Verbose output')
@@ -406,7 +721,8 @@ Authentication:
             max_builds=args.max_builds,
             job_filter=args.filter,
             export_configs=args.export_configs,
-            export_build_data=args.export_build_data
+            export_build_data=args.export_build_data,
+            single_job=args.single_job
         )
         
         if stats:

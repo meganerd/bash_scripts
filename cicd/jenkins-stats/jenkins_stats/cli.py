@@ -63,12 +63,19 @@ OPTIONS:
     --netrc FILE            Path to netrc file for authentication (default: ~/.netrc)
     --export-configs        Export job configuration XML files
     --export-build-data     Export detailed build data JSON files
+    --single-job            Analyze a single job instead of all jobs on server
     -v, --verbose           Verbose output
     -h, --help              Show this help
 
 EXAMPLES:
     # Basic usage - analyze 'environment' parameter for all jobs
     {prog_name} http://jenkins.example.com environment
+
+    # Analyze a specific job
+    {prog_name} --single-job http://jenkins.example.com/job/my-project environment
+
+    # Analyze nested job
+    {prog_name} --single-job http://jenkins.example.com/job/folder/job/project branch
 
     # Limit to 50 jobs and analyze 'branch' parameter
     {prog_name} -n 50 http://jenkins.example.com branch
@@ -176,6 +183,7 @@ def main():
     parser.add_argument('--netrc', default='~/.netrc', help='Path to netrc file for authentication')
     parser.add_argument('--export-configs', action='store_true', help='Export job configuration XML files')
     parser.add_argument('--export-build-data', action='store_true', help='Export detailed build data JSON files')
+    parser.add_argument('--single-job', action='store_true', help='Analyze a single job instead of all jobs on server')
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
     parser.add_argument('-h', '--help', action='store_true', help='Show help')
     
@@ -233,6 +241,8 @@ def main():
         cmd.append('--export-configs')
     if args.export_build_data:
         cmd.append('--export-build-data')
+    if args.single_job:
+        cmd.append('--single-job')
     if args.verbose:
         cmd.append('--verbose')
     
