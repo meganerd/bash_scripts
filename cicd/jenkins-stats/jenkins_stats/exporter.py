@@ -30,18 +30,10 @@ class JenkinsJobExporter:
 
     def _validate_jenkins_url(self):
         """Validate that the Jenkins URL looks correct"""
-        # Check for common mistakes in URL
-        if '/job/' in self.jenkins_url:
-            print(f"⚠️  Warning: The URL contains '/job/' which suggests it points to a specific job.")
-            print(f"   This tool needs the Jenkins server root URL, not a job URL.")
-            print(f"   Example: http://jenkins.example.com (not http://jenkins.example.com/job/my-job)")
-            print(f"   Continuing anyway, but this may fail...\n")
-        
-        if self.jenkins_url.endswith('/view/'):
-            print(f"⚠️  Warning: The URL appears to point to a Jenkins view.")
-            print(f"   This tool needs the Jenkins server root URL.")
-            print(f"   Example: http://jenkins.example.com (not http://jenkins.example.com/view/my-view)")
-            print(f"   Continuing anyway, but this may fail...\n")
+        # Note: This validation runs before we know if --single-job is set,
+        # so we show warnings that may not apply. The actual validation
+        # happens in the respective methods.
+        pass
 
     def _setup_auth(self):
         """Setup authentication from netrc file"""
@@ -405,94 +397,7 @@ class JenkinsJobExporter:
             
         return job_stats
 
-    def export_jobs_with_stats(self, 
-                             output_dir: str, 
-                             target_parameter: str,
-                             max_jobs: Optional[int] = None,
-                             max_builds: int = 100,
-                             job_filter: Optional[str] = None,
-                             export_configs: bool = False,
-                             export_build_data: bool = False) -> Dict:
-        """Export jobs and collect statistics grouped by parameter"""
-        
-        output_path = Path(output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
-        
-        jobs = self.get_all_jobs(job_filter, max_jobs)
-        
-        if not jobs:
-            print("No jobs found matching criteria")
-            return {}
-        
-        aggregated_stats = {}
-        processed_count = 0
-        
-        print(f"\nProcessing {len(jobs)} jobs...")
-        print(f"Looking for parameter: '{target_parameter}'")
-        print(f"Max builds per job: {max_builds}")
-        
-        for i, job in enumerate(jobs, 1):
-            job_name = job['name']
-            print(f"[{i:3d}/{len(jobs)}] Processing: {job_name}")
-            
-            # Add delay to be nice to Jenkins
-            if self.delay > 0:
-                time.sleep(self.delay)
-            
-            try:
-                # Export job configuration if requested
-                if export_configs:
-                    config_xml = self.get_job_config(job_name)
-                    config_file = output_path / f"{job_name}_config.xml"
-                    config_file.write_text(config_xml, encoding='utf-8')
-                
-                # Process job builds
-                job_stats = self.process_job(job_name, target_parameter, max_builds)
-                
-                # Export build data if requested
-                if export_build_data and job_stats:
-                    builds_data = self.get_job_builds(job_name, max_builds)
-                    builds_file = output_path / f"{job_name}_builds.json"
-                    builds_file.write_text(json.dumps(builds_data, indent=2), encoding='utf-8')
-                
-                # Merge job stats into aggregated stats
-                for param_value, stats in job_stats.items():
-                    if param_value not in aggregated_stats:
-                        aggregated_stats[param_value] = {
-                            'total_builds': 0,
-                            'successful_builds': 0,
-                            'failed_builds': 0,
-                            'unstable_builds': 0,
-                            'aborted_builds': 0,
-                            'total_duration': 0,
-                            'jobs': set()
-                        }
-                    
-                    agg_stats = aggregated_stats[param_value]
-                    agg_stats['total_builds'] += stats['total_builds']
-                    agg_stats['successful_builds'] += stats['successful_builds']
-                    agg_stats['failed_builds'] += stats['failed_builds']
-                    agg_stats['unstable_builds'] += stats['unstable_builds']
-                    agg_stats['aborted_builds'] += stats['aborted_builds']
-                    agg_stats['total_duration'] += stats['total_duration']
-                    agg_stats['jobs'].update(stats['jobs'])
-                
-                if job_stats:
-                    processed_count += 1
-                    
-            except Exception as e:
-                print(f"    ERROR: {e}")
-                continue
-        
-        print(f"\nSuccessfully processed {processed_count}/{len(jobs)} jobs")
-        
-        if aggregated_stats:
-            self.save_statistics(aggregated_stats, output_path, target_parameter)
-            self.print_summary(aggregated_stats)
-        else:
-            print(f"No builds found with parameter '{target_parameter}'")
-        
-        return aggregated_stats
+
 
     def save_statistics(self, job_stats: Dict, output_path: Path, parameter_name: str):
         """Save statistical analysis to files"""
