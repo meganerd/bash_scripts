@@ -286,6 +286,33 @@ This error occurs when there's a mismatch between the URL type and the mode you'
   ```
 - **File permissions:** Ensure `.netrc` has correct permissions: `chmod 600 ~/.netrc`
 
+#### Only Getting 100 Results Even with Higher -b Value
+
+This indicates that Jenkins has API pagination limits. The tool now includes pagination support to bypass this.
+
+**What happens now:**
+- Tool automatically detects total builds available
+- Fetches builds in chunks of 100 (Jenkins API limit)
+- Combines all chunks to give you the requested number
+
+**If you're still limited:**
+1. **Jenkins build retention:** Check if the job has automatic cleanup enabled
+   - Go to your job → Configure → Build History → "Discard old builds"
+   - If checked, older builds may have been deleted
+   - Increase "Max # of builds to keep" if you need more history
+
+2. **Jenkins system limits:** Some Jenkins instances have global build retention policies
+
+**Debug with verbose:**
+```bash
+jenkins-stats --single-job -b 500 -v http://your-jenkins.com/job/your-project --parameter env
+```
+
+This will show:
+- How many total builds are available
+- How many builds are being fetched in each chunk
+- Final count of builds processed
+
 #### No Parameter Data Found
 - **Verify parameter name:** Check that builds actually use the parameter you're searching for
 - **Case sensitivity:** Parameter names are case-sensitive

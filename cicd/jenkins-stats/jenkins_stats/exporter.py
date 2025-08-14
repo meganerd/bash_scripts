@@ -111,6 +111,7 @@ class JenkinsJobExporter:
     def analyze_single_job(self, target_parameter: str, max_builds: int = 100) -> Dict:
         """Analyze a single job by its direct URL"""
         print(f"Analyzing single job: {self.jenkins_url}")
+        print(f"Requesting up to {max_builds} builds...")
         
         # Validate that this looks like a job URL
         if '/job/' not in self.jenkins_url:
@@ -124,24 +125,10 @@ class JenkinsJobExporter:
         job_name = self.jenkins_url.split('/job/')[-1].split('/')[0]
         
         try:
-            # Get job data directly
-            url = f"{self.jenkins_url}/api/json"
-            params = {
-                'tree': f'name,builds[number,result,duration,timestamp,actions[parameters[name,value]]]{{0,{max_builds}}}'
-            }
-            response = self.session.get(url, params=params)
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            if 'builds' not in data:
-                raise ValueError(
-                    f"No builds found for job at {self.jenkins_url}\n"
-                    f"Make sure the URL points to a valid Jenkins job."
-                )
-            
-            builds = data['builds']
-            job_display_name = data.get('name', job_name)
+            # Get all builds using pagination if needed
+            all_builds = self._get_all_builds_paginated(max_builds)
+            job_display_name = all_builds.get('job_name', job_name)
+            builds = all_builds['builds']
             
             print(f"Found {len(builds)} builds for job '{job_display_name}'")
             print(f"Looking for parameter: '{target_parameter}'")
@@ -213,6 +200,58 @@ class JenkinsJobExporter:
             raise RuntimeError(f"Failed to connect to Jenkins job at {self.jenkins_url}: {e}")
         except Exception as e:
             raise RuntimeError(f"Failed to analyze Jenkins job: {e}")
+
+    def _get_all_builds_paginated(self, max_builds: int) -> Dict:
+        """Get job builds using pagination to bypass Jenkins API limits"""
+        url = f"{self.jenkins_url}/api/json"
+        
+        # First, get basic job info and total build count
+        basic_params = {'tree': 'name,builds[number]'}
+        response = self.session.get(url, params=basic_params)
+        response.raise_for_status()
+        basic_data = response.json()
+        
+        job_name = basic_data.get('name', 'Unknown')
+        total_builds_available = len(basic_data.get('builds', []))
+        
+        print(f"Job has {total_builds_available} total builds available")
+        
+        # Determine how many builds to actually fetch
+        builds_to_fetch = min(max_builds, total_builds_available)
+        print(f"Fetching {builds_to_fetch} builds...")
+        
+        all_builds = []
+        page_size = 100  # Jenkins API limit per request
+        
+        for start_index in range(0, builds_to_fetch, page_size):
+            end_index = min(start_index + page_size - 1, builds_to_fetch - 1)
+            
+            print(f"  Fetching builds {start_index}-{end_index}...")
+            
+            # Get builds for this page
+            params = {
+                'tree': f'builds[number,result,duration,timestamp,actions[parameters[name,value]]]{{{start_index},{end_index}}}'
+            }
+            
+            response = self.session.get(url, params=params)
+            response.raise_for_status()
+            page_data = response.json()
+            
+            page_builds = page_data.get('builds', [])
+            all_builds.extend(page_builds)
+            
+            print(f"    Got {len(page_builds)} builds")
+            
+            # Add small delay between requests
+            if self.delay > 0:
+                time.sleep(self.delay)
+        
+        print(f"Total builds fetched: {len(all_builds)}")
+        
+        return {
+            'job_name': job_name,
+            'builds': all_builds
+        }
 
     def export_jobs_with_stats(self, 
                              output_dir: str, 
@@ -534,16 +573,16 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Export 100 jobs, analyze by 'environment' parameter
-  %(prog)s http://jenkins.example.com -p environment -n 100
+  # Multi-job mode: Analyze 100 jobs, up to 200 builds each
+  %(prog)s http://jenkins.example.com -p environment -n 100 -b 200
 
-  # Analyze a specific job by parameter
-  %(prog)s --single-job http://jenkins.example.com/job/my-project -p environment
+  # Single job mode: Analyze 500 builds from one specific job
+  %(prog)s --single-job http://jenkins.example.com/job/my-project -p environment -b 500
 
-  # Analyze nested job
-  %(prog)s --single-job http://jenkins.example.com/job/folder/job/project -p branch
+  # Analyze nested job with extended history
+  %(prog)s --single-job http://jenkins.example.com/job/folder/job/project -p branch -b 1000
 
-  # Filter jobs by name pattern and export configs
+  # Filter jobs by name pattern and export configs (multi-job mode)
   %(prog)s http://jenkins.example.com -p branch -f "deploy" --export-configs
 
   # Analyze all jobs with verbose output
