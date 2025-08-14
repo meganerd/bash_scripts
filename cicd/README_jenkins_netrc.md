@@ -6,7 +6,7 @@ Bash script to fetch all builds for Jenkins jobs via the API with secure `.netrc
 
 * **Secure Authentication** - Uses `.netrc` files (no credentials in command line)  
 * **Nested Job Support** - Handle jobs in folders/subfolders  
-* **Full URL Parsing** - Extract job info from complete Jenkins URLs  
+* **Full URL Only** - Simplified to accept only complete Jenkins job URLs
 * **Custom .netrc Files** - Use specific .netrc files or default ~/.netrc  
 * **Formatted Output** - Total count + one build per line with console URLs  
 
@@ -32,13 +32,13 @@ chmod 600 ~/.netrc
 
 ```bash
 # Simple job
-./jenkins_builds.sh "https://jenkins.example.com" "job-name"
+./jenkins_builds.sh "https://jenkins.example.com/job/job-name"
 
 # Nested job
-./jenkins_builds.sh "https://jenkins.example.com" "folder/subfolder/jobname"
+./jenkins_builds.sh "https://jenkins.example.com/job/folder/job/subfolder/job/jobname"
 
-# Full job URL (auto-detects everything)
-./jenkins_builds.sh "https://jenkins.example.com/job/folder/job/jobname" ""
+# With custom .netrc file
+./jenkins_builds.sh "https://jenkins.example.com/job/folder/job/jobname" "/path/to/custom.netrc"
 ```
 
 ## Usage Examples
@@ -46,28 +46,22 @@ chmod 600 ~/.netrc
 ### Basic Usage
 ```bash
 # Simple job with default ~/.netrc
-./jenkins_builds.sh "https://jenkins.example.com" "my-job"
+./jenkins_builds.sh "https://jenkins.example.com/job/my-job"
 
 # Nested job in folders
-./jenkins_builds.sh "https://jenkins.example.com" "team-folder/project-folder/build-job"
-
-# Using full job URL
-./jenkins_builds.sh "https://jenkins.example.com/job/team-folder/job/project-folder/job/build-job" ""
+./jenkins_builds.sh "https://jenkins.example.com/job/team-folder/job/project-folder/job/build-job"
 ```
 
 ### Custom .netrc File
 ```bash
 # Use custom .netrc file
-./jenkins_builds.sh "https://jenkins.example.com" "job-name" "/path/to/custom.netrc"
-
-# Full URL with custom .netrc
-./jenkins_builds.sh "https://jenkins.example.com/job/folder/job/jobname" "" "/path/to/custom.netrc"
+./jenkins_builds.sh "https://jenkins.example.com/job/folder/job/jobname" "/path/to/custom.netrc"
 ```
 
 ### Public Jenkins (No Authentication)
 ```bash
 # Public Jenkins instances (like ci.jenkins.io)
-./jenkins_builds.sh "https://ci.jenkins.io" "some-public-job"
+./jenkins_builds.sh "https://ci.jenkins.io/job/some-public-job"
 ```
 
 ## .netrc File Format
@@ -132,29 +126,29 @@ Build #  | Display Name | Result | Console URL
 - Browser URL: `https://jenkins.example.com/job/folder/job/subfolder/job/jobname/`
 - API URL: `https://jenkins.example.com/job/folder/job/subfolder/job/jobname/api/json`
 
-### Input Formats Supported
+### Input Format
 
-The script accepts any of these input formats:
+The script now only accepts complete Jenkins job URLs:
 
-1. **Base URL + Job Path**: `jenkins.example.com` + `folder/jobname`
-2. **Base URL + Simple Job**: `jenkins.example.com` + `jobname`  
-3. **Full Job URL**: `https://jenkins.example.com/job/folder/job/jobname`
+- **Full Job URL**: `https://jenkins.example.com/job/folder/job/jobname`
+
+The script will automatically extract the Jenkins base URL and job path from the provided URL.
 
 ## Authentication Methods
 
 ### 1. Default ~/.netrc (Recommended)
 ```bash
-./jenkins_builds.sh "https://jenkins.example.com" "jobname"
+./jenkins_builds.sh "https://jenkins.example.com/job/jobname"
 ```
 
 ### 2. Custom .netrc File
 ```bash
-./jenkins_builds.sh "https://jenkins.example.com" "jobname" "/path/to/project.netrc"
+./jenkins_builds.sh "https://jenkins.example.com/job/jobname" "/path/to/project.netrc"
 ```
 
 ### 3. No Authentication (Public Jenkins)
 ```bash
-./jenkins_builds.sh "https://ci.jenkins.io" "public-job"
+./jenkins_builds.sh "https://ci.jenkins.io/job/public-job"
 ```
 
 ## Multiple Jenkins Instances
@@ -213,12 +207,12 @@ curl: (77) error setting certificate verify locations
 
 **4. Invalid URL Format**
 ```
-Error: URL doesn't appear to be a Jenkins job URL
+Error: Please provide a full Jenkins job URL containing '/job/'
 ```
 **Solutions:**
 - Ensure the URL contains `/job/` for job URLs
 - Check the URL format matches Jenkins conventions
-- Use the script's URL parsing by providing base URL + job name separately
+- Provide the complete Jenkins job URL (e.g., `https://jenkins.example.com/job/jobname`)
 
 ### Debug Mode
 

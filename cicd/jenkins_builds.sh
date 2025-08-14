@@ -1,80 +1,32 @@
 #!/bin/bash
 
-# Function to parse job URL and extract Jenkins base URL and job path
-parse_job_url() {
-    local input_url="$1"
+# Function to get Jenkins builds for a job using full URL
+get_jenkins_builds() {
+    local full_job_url="$1"
+    local netrc_file="$2"
     
     # Remove trailing slashes
-    input_url="${input_url%/}"
+    full_job_url="${full_job_url%/}"
     
-    # Check if this looks like a full job URL
-    if [[ "$input_url" == *"/job/"* ]]; then
-        # Extract base Jenkins URL (everything before /job/)
-        jenkins_base="${input_url%%/job/*}"
-        
-        # Extract job path (everything after first /job/)
-        job_path="${input_url#*/job/}"
-        
-        # Convert job path to API format
-        # Replace /job/ with /job/ but handle nested structure
-        api_job_path="${job_path//\/job\//\/job\/}"
-        
-        echo "${jenkins_base}|${api_job_path}"
-    else
-        # Assume it's just a job name or simple path
-        echo "|${input_url}"
-    fi
-}
-
-# Function to get Jenkins builds for a job
-get_jenkins_builds() {
-    local jenkins_url="$1"
-    local job_input="$2"
-    local netrc_file="$3"
-    
-    # Parse the job input to handle full URLs or simple job names
-    local parse_result
-    parse_result=$(parse_job_url "$job_input")
-    
-    local base_url job_path
-    IFS='|' read -r base_url job_path <<< "$parse_result"
-    
-    # Determine final Jenkins URL and job path
-    if [ -n "$base_url" ]; then
-        # Full URL was provided
-        final_jenkins_url="$base_url"
-        final_job_path="$job_path"
-        echo "Detected full job URL"
-        echo "Jenkins Base URL: $final_jenkins_url"
-        echo "Job Path: $final_job_path"
-    else
-        # Simple job name was provided
-        final_jenkins_url="$jenkins_url"
-        final_job_path="$job_path"
-        echo "Using provided Jenkins URL with job name/path"
-        echo "Jenkins URL: $final_jenkins_url"
-        echo "Job Name/Path: $final_job_path"
+    # Validate that this is a Jenkins job URL
+    if [[ "$full_job_url" != *"/job/"* ]]; then
+        echo "Error: Please provide a full Jenkins job URL containing '/job/'"
+        echo "Example: https://jenkins.example.com/job/folder/job/jobname"
+        exit 1
     fi
     
+    # Extract base Jenkins URL (everything before /job/)
+    jenkins_base="${full_job_url%%/job/*}"
+    
+    # Extract job path (everything after first /job/)
+    job_path="${full_job_url#*/job/}"
+    
+    echo "Jenkins Base URL: $jenkins_base"
+    echo "Job Path: $job_path"
     echo "=================================================="
     
     # Construct the API URL to get all builds
-    # Handle nested jobs by ensuring proper /job/ structure
-    if [[ "$final_job_path" == *"/"* ]] && [[ "$final_job_path" != *"/job/"* ]]; then
-        # Convert folder/job format to job/folder/job/jobname format
-        api_job_path=""
-        IFS='/' read -ra PATH_PARTS <<< "$final_job_path"
-        for part in "${PATH_PARTS[@]}"; do
-            if [ -n "$part" ]; then
-                api_job_path="${api_job_path}/job/${part}"
-            fi
-        done
-        api_job_path="${api_job_path#/}"  # Remove leading slash
-    else
-        api_job_path="job/${final_job_path}"
-    fi
-    
-    api_url="${final_jenkins_url}/${api_job_path}/api/json?tree=builds[number,url,displayName,result,timestamp]"
+    api_url="${jenkins_base}/job/${job_path//\/job\//\/job\/}/api/json?tree=builds[number,url,displayName,result,timestamp]"
     
     # Prepare curl command with .netrc authentication
     curl_cmd="curl -s -n"
@@ -131,35 +83,24 @@ get_jenkins_builds() {
 
 # Show usage information
 show_usage() {
-    echo "Usage: $0 <jenkins_url_or_full_job_url> <job_name_or_empty> [netrc_file]"
+    echo "Usage: $0 <full_jenkins_job_url> [netrc_file]"
     echo ""
     echo "This script uses .netrc authentication for secure credential management."
     echo "Authentication is handled via .netrc files (default: ~/.netrc)"
     echo ""
-    echo "The script can handle both simple job names and nested jobs in folders."
-    echo "You can provide either:"
-    echo "  1. Jenkins base URL + job name/path"
-    echo "  2. Full job URL (script will extract base URL and job path)"
-    echo ""
     echo "Examples:"
     echo ""
     echo "1. Simple job (uses ~/.netrc for auth):"
-    echo "   $0 \"https://jenkins.example.com\" \"job-name\""
+    echo "   $0 \"https://jenkins.example.com/job/job-name\""
     echo ""
-    echo "2. Nested job using folder/job format:"
-    echo "   $0 \"https://jenkins.example.com\" \"folder1/subfolder/jobname\""
+    echo "2. Nested job:"
+    echo "   $0 \"https://jenkins.example.com/job/folder1/job/subfolder/job/jobname\""
     echo ""
-    echo "3. Using full job URL (script extracts everything automatically):"
-    echo "   $0 \"https://jenkins.example.com/job/folder1/job/subfolder/job/jobname\" \"\""
+    echo "3. With custom .netrc file:"
+    echo "   $0 \"https://jenkins.example.com/job/folder/job/jobname\" \"/path/to/custom.netrc\""
     echo ""
-    echo "4. With custom .netrc file:"
-    echo "   $0 \"https://jenkins.example.com\" \"folder/jobname\" \"/path/to/custom.netrc\""
-    echo ""
-    echo "5. Full URL with custom .netrc file:"
-    echo "   $0 \"https://jenkins.example.com/job/folder/job/jobname\" \"\" \"/path/to/custom.netrc\""
-    echo ""
-    echo "6. Public Jenkins (no authentication needed):"
-    echo "   $0 \"https://ci.jenkins.io\" \"job-name\""
+    echo "4. Public Jenkins (no authentication needed):"
+    echo "   $0 \"https://ci.jenkins.io/job/job-name\""
     echo ""
     echo ".netrc file format:"
     echo "machine jenkins.example.com"
@@ -180,28 +121,10 @@ if ! command -v jq &> /dev/null; then
 fi
 
 # Check arguments
-if [ $# -lt 1 ]; then
+if [ $# -lt 1 ] || [ $# -gt 2 ]; then
     show_usage
     exit 1
 fi
 
-# Handle different argument patterns
-if [ $# -eq 1 ] && [[ "$1" == *"/job/"* ]]; then
-    # Single argument that's a full job URL
-    get_jenkins_builds "" "$1" ""
-elif [ $# -eq 1 ]; then
-    # Single argument that's not a full URL - need more info
-    show_usage
-    exit 1
-elif [ $# -eq 2 ]; then
-    # Two arguments: jenkins_url job_name
-    get_jenkins_builds "$1" "$2" ""
-elif [ $# -eq 3 ]; then
-    # Three arguments: jenkins_url job_name netrc_file
-    get_jenkins_builds "$1" "$2" "$3"
-else
-    # Too many arguments
-    echo "Error: Too many arguments provided"
-    show_usage
-    exit 1
-fi
+# Call the function with provided arguments
+get_jenkins_builds "$1" "$2"
