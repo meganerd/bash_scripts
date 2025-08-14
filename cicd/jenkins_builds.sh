@@ -26,7 +26,23 @@ get_jenkins_builds() {
     echo "=================================================="
     
     # Construct the API URL to get all builds
-    api_url="${jenkins_base}/job/${job_path//\/job\//\/job\/}/api/json?tree=builds[number,url,displayName,result,timestamp]"
+    # Handle nested jobs by ensuring proper /job/ structure
+    if [[ "$job_path" == *"/job/"* ]]; then
+        # Already has /job/ structure, use as-is
+        api_job_path="job/${job_path}"
+    else
+        # Convert folder/job format to job/folder/job/jobname format
+        api_job_path=""
+        IFS='/' read -ra PATH_PARTS <<< "$job_path"
+        for part in "${PATH_PARTS[@]}"; do
+            if [ -n "$part" ]; then
+                api_job_path="${api_job_path}/job/${part}"
+            fi
+        done
+        api_job_path="${api_job_path#/}"  # Remove leading slash
+    fi
+    
+    api_url="${jenkins_base}/${api_job_path}/api/json?tree=builds[number,url,displayName,result,timestamp]"
     
     # Prepare curl command with .netrc authentication
     curl_cmd="curl -s -n"
