@@ -82,8 +82,27 @@ jenkins-export --single-job http://jenkins.example.com/job/my-project environmen
 # Analyze nested job (folders/pipelines)
 jenkins-stats --single-job http://jenkins.example.com/job/folder/job/project --parameter branch
 
-# Analyze single job with more build history
-jenkins-export --single-job -b 200 http://jenkins.example.com/job/my-project version
+# Analyze single job with more build history (use -b, not -n!)
+jenkins-export --single-job -b 500 http://jenkins.example.com/job/my-project version
+```
+
+### ⚠️ Parameter Usage by Mode
+
+**Multi-Job Mode (default):**
+- `-n` (--max-jobs): Controls how many Jenkins jobs to analyze
+- `-b` (--max-builds): Controls how many builds per job to examine
+
+**Single Job Mode (--single-job):**
+- `-n` (--max-jobs): **Ignored** (only analyzing one job)
+- `-b` (--max-builds): Controls how many builds from that job to examine
+
+**Examples:**
+```bash
+# Multi-job: Analyze 50 jobs, 200 builds each
+jenkins-stats http://jenkins.example.com -p env -n 50 -b 200
+
+# Single job: Analyze 500 builds from one job (-n is ignored)
+jenkins-stats --single-job http://jenkins.example.com/job/my-project -p env -b 500
 ```
 
 ### Advanced Usage

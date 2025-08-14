@@ -235,7 +235,7 @@ class JenkinsJobExporter:
             if export_build_data and aggregated_stats:
                 # Export build data for single job
                 job_name = self.jenkins_url.split('/job/')[-1].split('/')[0]
-                builds_data = self.get_job_builds_direct()
+                builds_data = self.get_job_builds_direct(max_builds)
                 builds_file = output_path / f"{job_name}_builds.json"
                 builds_file.write_text(json.dumps(builds_data, indent=2), encoding='utf-8')
             
@@ -565,7 +565,7 @@ Authentication:
     
     parser.add_argument('-n', '--max-jobs', 
                        type=int, 
-                       help='Maximum number of jobs to process (default: all jobs)')
+                       help='Maximum number of jobs to process (default: all jobs) - ignored in --single-job mode')
     
     parser.add_argument('-b', '--max-builds', 
                        type=int, 
@@ -573,7 +573,7 @@ Authentication:
                        help='Maximum number of builds per job to analyze (default: 100)')
     
     parser.add_argument('-f', '--filter', 
-                       help='Filter jobs by name (case-insensitive substring match)')
+                       help='Filter jobs by name (case-insensitive substring match) - ignored in --single-job mode')
     
     parser.add_argument('-o', '--output', 
                        default='jenkins_export',
