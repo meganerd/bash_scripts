@@ -224,11 +224,13 @@ class JenkinsJobExporter:
         page_size = 100  # Jenkins API limit per request
         
         for start_index in range(0, builds_to_fetch, page_size):
+            # Calculate end index (inclusive) for this page
             end_index = min(start_index + page_size - 1, builds_to_fetch - 1)
             
-            print(f"  Fetching builds {start_index}-{end_index}...")
+            print(f"  Fetching builds {start_index}-{end_index} (requesting {end_index - start_index + 1} builds)...")
             
             # Get builds for this page
+            # Jenkins range syntax: {start,end} where both are inclusive
             params = {
                 'tree': f'builds[number,result,duration,timestamp,actions[parameters[name,value]]]{{{start_index},{end_index}}}'
             }
@@ -240,7 +242,12 @@ class JenkinsJobExporter:
             page_builds = page_data.get('builds', [])
             all_builds.extend(page_builds)
             
-            print(f"    Got {len(page_builds)} builds")
+            print(f"    Got {len(page_builds)} builds (total so far: {len(all_builds)})")
+            
+            # Break if we got fewer builds than expected (reached end of available builds)
+            if len(page_builds) < (end_index - start_index + 1):
+                print(f"    Reached end of available builds")
+                break
             
             # Add small delay between requests
             if self.delay > 0:
