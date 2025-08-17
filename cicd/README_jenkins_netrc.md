@@ -96,22 +96,22 @@ password another-api-token
 ## Output Format
 
 ```
-Detected full job URL
 Jenkins Base URL: https://jenkins.example.com
 Job Path: folder/jobname
 Using default ~/.netrc for authentication (if it exists)
-API URL: https://jenkins.example.com/job/folder/job/jobname/api/json?tree=builds[number,url,displayName,result,timestamp]
 
 Total number of builds: 25
 
 Build List:
-----------------------------------------
-Build #  | Display Name | Result | Console URL
----------|--------------|--------|-------------
-123      | Build #123   | SUCCESS| https://jenkins.example.com/job/folder/job/jobname/123/console
-122      | Build #122   | FAILURE| https://jenkins.example.com/job/folder/job/jobname/122/console
-121      | Build #121   | SUCCESS| https://jenkins.example.com/job/folder/job/jobname/121/console
+--------------------------------------------------------
+Build #  | Display Name | Result | Duration | Console URL
+---------|--------------|--------|----------|-------------
+123      | Build #123   | SUCCESS| 2m 45s   | https://jenkins.example.com/job/folder/job/jobname/123/console
+122      | Build #122   | FAILURE| 1m 30s   | https://jenkins.example.com/job/folder/job/jobname/122/console
+121      | Build #121   | SUCCESS| 3m 12s   | https://jenkins.example.com/job/folder/job/jobname/121/console
 ...
+
+Execution completed in 2 seconds
 ```
 
 ## Jenkins URL Structure

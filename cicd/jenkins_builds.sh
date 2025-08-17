@@ -4,6 +4,7 @@
 get_jenkins_builds() {
     local full_job_url="$1"
     local netrc_file="$2"
+    local start_time=$(date +%s)
     
     # Remove trailing slashes
     full_job_url="${full_job_url%/}"
@@ -42,29 +43,38 @@ get_jenkins_builds() {
         api_job_path="${api_job_path#/}"  # Remove leading slash
     fi
     
-    api_url="${jenkins_base}/${api_job_path}/api/json?tree=builds[number,url,displayName,result,timestamp]"
+    # Use URL-encoded query parameters to avoid issues with brackets and commas
+    api_url="${jenkins_base}/${api_job_path}/api/json?tree=builds%5Bnumber%2Curl%2CdisplayName%2Cresult%2Ctimestamp%2Cduration%5D"
     
-    # Prepare curl command with .netrc authentication
-    curl_cmd="curl -s -n"
-    
-    # Add custom .netrc file if provided
-    if [ -n "$netrc_file" ]; then
-        if [ -f "$netrc_file" ]; then
-            curl_cmd="$curl_cmd --netrc-file \"$netrc_file\""
-            echo "Using .netrc file: $netrc_file"
-        else
-            echo "Warning: Specified .netrc file '$netrc_file' does not exist"
-            echo "Falling back to default ~/.netrc"
-        fi
-    else
-        echo "Using default ~/.netrc for authentication (if it exists)"
+    # Validate the constructed URL
+    if [[ "$api_url" == *"//"* ]] && [[ "$api_url" != "https://"* ]] && [[ "$api_url" != "http://"* ]]; then
+        echo "Warning: Detected double slashes in URL, attempting to fix..."
+        api_url="${api_url//\/\//\/}"
+        echo "Fixed API URL: $api_url"
     fi
     
-    echo "API URL: $api_url"
-    echo ""
-    
     # Make the API call
-    response=$(eval "$curl_cmd \"$api_url\"")
+    if [ -n "$netrc_file" ] && [ -f "$netrc_file" ]; then
+        echo "Using .netrc file: $netrc_file"
+        response=$(curl -s -n --netrc-file "$netrc_file" "$api_url")
+        curl_exit_code=$?
+    else
+        echo "Using default ~/.netrc for authentication (if it exists)"
+        response=$(curl -s -n "$api_url")
+        curl_exit_code=$?
+    fi
+    
+    # If curl failed, show the error
+    if [ $curl_exit_code -ne 0 ]; then
+        echo "Error: curl command failed with exit code $curl_exit_code"
+        echo "API URL: $api_url"
+        echo ""
+        echo "Troubleshooting:"
+        echo "- Check if the Jenkins URL and job path are correct"
+        echo "- Verify authentication in ~/.netrc or specified .netrc file"
+        echo "- Ensure you have permissions to access this job"
+        return 1
+    fi
     
     # Check if the response is valid JSON
     if ! echo "$response" | jq . >/dev/null 2>&1; then
@@ -78,23 +88,54 @@ get_jenkins_builds() {
         return 1
     fi
     
+    
     # Extract total number of builds
     total_builds=$(echo "$response" | jq '.builds | length')
     
     echo "Total number of builds: $total_builds"
     echo ""
     echo "Build List:"
-    echo "----------------------------------------"
-    echo "Build #  | Display Name | Result | Console URL"
-    echo "---------|--------------|--------|-------------"
+    echo "--------------------------------------------------------"
+    echo "Build #  | Display Name | Result | Duration | Console URL"
+    echo "---------|--------------|--------|----------|-------------"
+    
+    # Function to format duration from milliseconds to human readable
+    format_duration() {
+        local duration_ms=$1
+        if [ "$duration_ms" = "null" ] || [ -z "$duration_ms" ]; then
+            echo "N/A"
+            return
+        fi
+        
+        local duration_sec=$((duration_ms / 1000))
+        local hours=$((duration_sec / 3600))
+        local minutes=$(((duration_sec % 3600) / 60))
+        local seconds=$((duration_sec % 60))
+        
+        if [ $hours -gt 0 ]; then
+            printf "%dh %dm %ds" $hours $minutes $seconds
+        elif [ $minutes -gt 0 ]; then
+            printf "%dm %ds" $minutes $seconds
+        else
+            printf "%ds" $seconds
+        fi
+    }
     
     # Process each build and format output
     echo "$response" | jq -r '.builds[] | 
-        "\(.number) | \(.displayName // "Build #\(.number)") | \(.result // "UNKNOWN") | \(.url)console"' | 
+        "\(.number) | \(.displayName // "Build #\(.number)") | \(.result // "UNKNOWN") | \(.duration // "null") | \(.url)console"' | 
         sort -nr | 
-        while IFS='|' read -r number display_name result console_url; do
-            printf "%-8s | %-12s | %-8s | %s\n" "$number" "$display_name" "$result" "$console_url"
+        while IFS='|' read -r number display_name result duration console_url; do
+            formatted_duration=$(format_duration "$duration")
+            printf "%-8s | %-12s | %-8s | %-8s | %s\n" "$number" "$display_name" "$result" "$formatted_duration" "$console_url"
         done
+    
+    # Calculate and display execution time
+    local end_time=$(date +%s)
+    local execution_time=$((end_time - start_time))
+    echo ""
+    echo "=================================================="
+    echo "Execution completed in ${execution_time} seconds"
 }
 
 # Show usage information
