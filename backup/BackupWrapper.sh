@@ -1,42 +1,43 @@
 #!/bin/bash
 # BackupWrapper.sh
 # written by: Gustin Johnson <gustin@meganerd.ca>
-# version: 0.3
+# version: 0.4
 #
-## Begin variables section: 
-##
-# Must be one of: RsyncRun  RdiffRun RdiffLocal DuplicityNetRun or DuplicityFileRun
-BackupFunction="RdiffLocal"
+# Modified to use configuration file
 
-# HOST may also be an Amazon S3 container name  
-HOST=localhost
-LocalDir="/opt/backup/rdiff_dir"
-USERNAME=userid
-PORT=22
-# Deprecated
-#SSH_CIPHER="blowfish"
-SSH_KEY="/usr/local/lib/mykey.id_rsa"	# this is the path to the rsa/dsa key
+# Default config file location
+CONFIG_FILE="/etc/BackupWrapper.cfg"
 
-# local_path is an array.  Put the directories to be backed up inside double quotes
-# be sure to not use a trailing '/' as this messes up directory creation for some methods like rsync.
-declare -a  sourcedir=( "/etc" "/usr/local" "/home" )
+# Check if config file exists
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "Error: Configuration file $CONFIG_FILE not found!"
+    echo "Please create the configuration file or specify an alternative location."
+    echo "Usage: $0 [config_file_path]"
+    exit 1
+fi
 
-REMOTE_PATH="/remote/path"	# path on the remote host to save files to
-					# duplicty creates a lot of files, this is 
-					# recommended to be set.
+# Allow override of config file location via command line argument
+if [[ $# -eq 1 ]]; then
+    CONFIG_FILE="$1"
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        echo "Error: Specified configuration file $CONFIG_FILE not found!"
+        exit 1
+    fi
+fi
 
-# Duplicity Specific Options
+echo "Using configuration file: $CONFIG_FILE"
 
-# Valid options for DUPLICITY_TRANSPORT might be: "scp" "s3-http" "hsi" see duplicity --help for more
-DUPLICITY_TRANSPORT="ssh"
+# Source the configuration file
+source "$CONFIG_FILE"
 
-# GPG key to use (the secret key must be in the root user's keyring), Duplicity only option.
-GPG_KEY=""
-GPG_PASSPHRASE=""
-
-PINGHOST=$HOST	# if we cannot ping the backup server, change this value to something we can ping, to test for network connectivity.
-
-## End variables section:
+# Validate required variables are set
+required_vars=("BackupFunction" "HOST" "USERNAME" "PORT" "SSH_KEY" "sourcedir" "REMOTE_PATH" "PINGHOST")
+for var in "${required_vars[@]}"; do
+    if [[ -z "${!var}" ]]; then
+        echo "Error: Required variable $var is not set in configuration file!"
+        exit 1
+    fi
+done
 
 ## ======== You should not need to edit anything below this line ========= ##
 
@@ -51,7 +52,7 @@ elements="${#sourcedir[*]}"
 
 CheckNet ()
 {
-  ping -c 1 $HOST  >& /dev/null ; # Checking to see if we have net connectivity to the backup server
+  ping -c 1 $PINGHOST  >& /dev/null ; # Checking to see if we have net connectivity to the backup server
 }
 
 RsyncRun ()
