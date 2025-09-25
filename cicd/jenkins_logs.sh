@@ -13,6 +13,7 @@ NETRC_FILE=~/.netrc
 # Check if we have at least the URL
 if [ $# -lt 1 ]; then
   echo "Usage: $0 <jenkins-url> [num-jobs] [output-dir] [netrc-file]"
+  echo "Example: $0 https://prod.jenkins.onetrust.dev/job/Infrastructure-Maintenance/job/sql-db-maintenance-schedule/job/db-maintainer/ 5 /tmp"
   exit 1
 fi
 
@@ -37,15 +38,44 @@ fi
 # Ensure output directory exists
 mkdir -p "$OUTPUT_DIR"
 
-# Fetch the list of builds
-BUILDS=$(curl --netrc --silent "$JENKINS_URL/api/json" | jq -r ".builds[0:$NUM_JOBS] | .[].number")
+# Fetch the list of builds (ensure URL ends with /)
+if [[ ! "$JENKINS_URL" =~ /$ ]]; then
+  JENKINS_URL="${JENKINS_URL}/"
+fi
 
-# For each build, download console log
+echo "Fetching builds from: $JENKINS_URL"
+BUILDS=$(curl --netrc-file "$NETRC_FILE" --silent "$JENKINS_URL/api/json?depth=1" | jq -r ".builds[0:$NUM_JOBS] | .[].number" 2>/dev/null)
+
+if [ -z "$BUILDS" ]; then
+  echo "Error: No builds found. Check URL, auth, or if jq is installed."
+  exit 1
+fi
+
+echo "Found builds: $BUILDS"
+
+# For each build, check existence and download console log
+SUCCESS_COUNT=0
 for BUILD_NUM in $BUILDS; do
   LOG_URL="${JENKINS_URL}build/${BUILD_NUM}/consoleText"
   LOG_FILE="${OUTPUT_DIR}/job_${BUILD_NUM}.txt"
-  curl --netrc --silent "$LOG_URL" > "$LOG_FILE"
-  echo "Downloaded log for build $BUILD_NUM to $LOG_FILE"
+
+  echo "Fetching log for build $BUILD_NUM from: $LOG_URL"
+
+  # Download with status check (no --silent for visibility)
+  RESPONSE=$(curl --netrc-file "$NETRC_FILE" -w "\nHTTP_CODE:%{http_code}" -s -L "$LOG_URL")  # -L follows redirects
+  HTTP_CODE=$(echo "$RESPONSE" | tail -n1 | sed 's/.*HTTP_CODE://')
+  CONTENT=$(echo "$RESPONSE" | sed '$d')  # Remove the HTTP_CODE line
+
+  if [ "$HTTP_CODE" = "200" ] && [[ "$CONTENT" != *"<html"* ]]; then
+    echo -e "$CONTENT" > "$LOG_FILE"
+    echo "✓ Downloaded log for build $BUILD_NUM to $LOG_FILE (${#CONTENT} chars)"
+    ((SUCCESS_COUNT++))
+  else
+    echo "✗ Failed build $BUILD_NUM: HTTP $HTTP_CODE"
+    # Save error content (e.g., HTML) to a .error file for debugging
+    echo -e "$CONTENT" > "${LOG_FILE}.error"
+    echo "Error details saved to ${LOG_FILE}.error"
+  fi
 done
 
-exit 0
+echo "Done. Successfully downloaded $SUCCESS_COUNT out of $(echo $BUILDS | wc -w) logs."
