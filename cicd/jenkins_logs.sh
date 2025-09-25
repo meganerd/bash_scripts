@@ -8,12 +8,11 @@ DEFAULT_OUTPUT_DIR="$HOME/Downloads"
 JENKINS_URL=""
 NUM_JOBS=$DEFAULT_NUM_JOBS
 OUTPUT_DIR="$DEFAULT_OUTPUT_DIR"
-NETRC_FILE=~/.netrc
 
 # Check if we have at least the URL
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 <jenkins-url> [num-jobs] [output-dir] [netrc-file]"
-  echo "Example: $0 https://prod.jenkins.onetrust.dev/job/Infrastructure-Maintenance/job/sql-db-maintenance-schedule/job/db-maintainer/ 5 /tmp"
+  echo "Usage: $0 <jenkins-url> [num-jobs] [output-dir]"
+  echo "Example: $0 https://prod.jenkins.onetrust.dev/job/Infrastructure-Maintenance/job/sql-db-maintenance-schedule/job/db-maintainer/ 5 ~/db-maint/"
   exit 1
 fi
 
@@ -30,11 +29,6 @@ if [ $# -gt 0 ]; then
   shift
 fi
 
-if [ $# -gt 0 ]; then
-  NETRC_FILE="$1"
-  shift
-fi
-
 # Ensure output directory exists
 mkdir -p "$OUTPUT_DIR"
 
@@ -44,7 +38,7 @@ if [[ ! "$JENKINS_URL" =~ /$ ]]; then
 fi
 
 echo "Fetching builds from: $JENKINS_URL"
-BUILDS=$(curl --netrc-file "$NETRC_FILE" --silent "$JENKINS_URL/api/json?depth=1" | jq -r ".builds[0:$NUM_JOBS] | .[].number" 2>/dev/null)
+BUILDS=$(curl --netrc --silent "$JENKINS_URL/api/json?depth=1" | jq -r ".builds[0:$NUM_JOBS] | .[].number" 2>/dev/null)
 
 if [ -z "$BUILDS" ]; then
   echo "Error: No builds found. Check URL, auth, or if jq is installed."
@@ -53,28 +47,30 @@ fi
 
 echo "Found builds: $BUILDS"
 
-# For each build, check existence and download console log
+# For each build, download console log (CORRECT URL: no /build/ prefix)
 SUCCESS_COUNT=0
 for BUILD_NUM in $BUILDS; do
-  LOG_URL="${JENKINS_URL}build/${BUILD_NUM}/consoleText"
+  LOG_URL="${JENKINS_URL}${BUILD_NUM}/consoleText"  # Fixed: Directly append build number
   LOG_FILE="${OUTPUT_DIR}/job_${BUILD_NUM}.txt"
 
   echo "Fetching log for build $BUILD_NUM from: $LOG_URL"
 
-  # Download with status check (no --silent for visibility)
-  RESPONSE=$(curl --netrc-file "$NETRC_FILE" -w "\nHTTP_CODE:%{http_code}" -s -L "$LOG_URL")  # -L follows redirects
+  # Download with status check (matching your direct curl: --netrc, no -L, --silent for clean output)
+  RESPONSE=$(curl --netrc -w "\nHTTP_CODE:%{http_code}" --silent --max-time 300 "$LOG_URL")
+  CURL_EXIT=$?
   HTTP_CODE=$(echo "$RESPONSE" | tail -n1 | sed 's/.*HTTP_CODE://')
   CONTENT=$(echo "$RESPONSE" | sed '$d')  # Remove the HTTP_CODE line
 
-  if [ "$HTTP_CODE" = "200" ] && [[ "$CONTENT" != *"<html"* ]]; then
+  if [ $CURL_EXIT -eq 0 ] && [ "$HTTP_CODE" = "200" ] && [ ${#CONTENT} -gt 100 ] && [[ "$CONTENT" != *"<html"* ]]; then
     echo -e "$CONTENT" > "$LOG_FILE"
-    echo "✓ Downloaded log for build $BUILD_NUM to $LOG_FILE (${#CONTENT} chars)"
+    echo "  ✓ Downloaded log for build $BUILD_NUM to $LOG_FILE (${#CONTENT} chars)"
     ((SUCCESS_COUNT++))
   else
-    echo "✗ Failed build $BUILD_NUM: HTTP $HTTP_CODE"
-    # Save error content (e.g., HTML) to a .error file for debugging
+    echo "  ✗ Failed build $BUILD_NUM: Curl exit $CURL_EXIT, HTTP $HTTP_CODE (content length: ${#CONTENT})"
+    echo "  First 100 chars: ${CONTENT:0:100}..."
+    # Save error content to .error file
     echo -e "$CONTENT" > "${LOG_FILE}.error"
-    echo "Error details saved to ${LOG_FILE}.error"
+    echo "  Error details saved to ${LOG_FILE}.error"
   fi
 done
 
