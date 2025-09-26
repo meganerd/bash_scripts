@@ -105,6 +105,8 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     NO_MERGE=false
     CLEANUP_TAR=false
     SHOW_HELP=false
+    PLATFORM_MODE=false
+    SPECIFIC_PLATFORM=""
 
     # Parse command line arguments
     while [[ $# -gt 0 ]]; do
@@ -129,6 +131,15 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                 NO_MERGE=true
                 EXTRACT_ALL_LAYERS=false
                 shift
+                ;;
+            -p|--platform)
+                PLATFORM_MODE=true
+                if [ -n "$2" ] && [[ ! "$2" =~ ^- ]]; then
+                    SPECIFIC_PLATFORM="$2"
+                    shift 2
+                else
+                    shift
+                fi
                 ;;
             *)
                 if [ -z "$IMAGE_NAME" ]; then
@@ -157,20 +168,23 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         echo "  output_directory  Output directory (default: ./<image-name>_<tag>_layers)"
         echo
         echo "Options:"
-        echo "  -h, --help        Show this help message"
-        echo "  -i, --interactive Enable interactive mode"
-        echo "  --extract-all     Extract all layers into merged filesystem"
-        echo "  --cleanup         Remove image.tar after extraction"
+        echo "  -h, --help           Show this help message"
+        echo "  -i, --interactive    Enable interactive mode"
+        echo "  -p, --platform [arch] Extract specific platform (default: all platforms)"
+        echo "  --extract-all        Extract all layers into merged filesystem"
+        echo "  --cleanup            Remove image.tar after extraction"
         echo
         echo "Examples:"
         echo "  $0 ubuntu:20.04"
         echo "  $0 -i myapp:latest /tmp/extracted"
         echo "  $0 --no-merge nginx:alpine"
+        echo "  $0 -p linux/amd64 myapp:latest"
         echo
         echo "By default, the script runs non-interactively and creates a merged folder"
         echo "with the pattern: image-name_image-tag_merged"
         echo
         echo "To disable merged folder creation, use --no-merge"
+        echo "To extract specific platform, use -p or --platform"
         echo
         exit 0
     fi
@@ -180,6 +194,12 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         read -p "Skip creating merged filesystem view? (y/n): " skip_merge
         if [ "$skip_merge" = "y" ]; then
             EXTRACT_ALL_LAYERS=false
+        fi
+
+        read -p "Extract specific platform? (y/n): " platform_choice
+        if [ "$platform_choice" = "y" ]; then
+            read -p "Enter platform (e.g., linux/amd64, linux/arm64): " SPECIFIC_PLATFORM
+            PLATFORM_MODE=true
         fi
 
         read -p "Remove image.tar to save space? (y/n): " cleanup
@@ -197,25 +217,106 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 
     PrintInfo "Extracting layers from $IMAGE_NAME"
 
-    # Create output directory
-    mkdir -p "$OUTPUT_DIR"
-    cd "$OUTPUT_DIR" || exit 1
+    # Handle platform-specific extraction
+    if [ "$PLATFORM_MODE" = true ]; then
+        if [ -n "$SPECIFIC_PLATFORM" ]; then
+            PrintInfo "Extracting specific platform: $SPECIFIC_PLATFORM"
+            # Create platform-specific output directory
+            PLATFORM_SAFE=$(echo "$SPECIFIC_PLATFORM" | tr '/' '_')
+            PLATFORM_OUTPUT_DIR="${OUTPUT_DIR}_${PLATFORM_SAFE}"
+            mkdir -p "$PLATFORM_OUTPUT_DIR"
+            cd "$PLATFORM_OUTPUT_DIR" || exit 1
 
-    PrintInfo "Saving image to tar file..."
-    if docker save "$IMAGE_NAME" -o image.tar; then
-        PrintSuccess "Image saved to image.tar"
+            # Save platform-specific image
+            if docker save --platform "$SPECIFIC_PLATFORM" "$IMAGE_NAME" -o image.tar; then
+                PrintSuccess "Platform-specific image saved to image.tar"
+            else
+                PrintError "Failed to save platform-specific image"
+                exit 1
+            fi
+        else
+            # Extract all platforms if jq is available
+            if command -v jq >/dev/null 2>&1; then
+                PrintInfo "Getting platform information from manifest..."
+                MANIFEST_OUTPUT=$(docker manifest inspect "$IMAGE_NAME" 2>/dev/null)
+
+                if [ $? -eq 0 ] && [ -n "$MANIFEST_OUTPUT" ]; then
+                    PLATFORMS=$(echo "$MANIFEST_OUTPUT" | jq -r '.[].platform | .os + "/" + .architecture' 2>/dev/null)
+
+                    if [ -n "$PLATFORMS" ]; then
+                        PrintInfo "Found platforms:"
+                        echo "$PLATFORMS"
+
+                        # Process each platform
+                        echo "$PLATFORMS" | while IFS= read -r PLATFORM; do
+                            if [ -n "$PLATFORM" ]; then
+                                PrintInfo "Extracting platform: $PLATFORM"
+                                PLATFORM_SAFE=$(echo "$PLATFORM" | tr '/' '_')
+                                ORIGINAL_DIR=$(pwd)
+                                PLATFORM_OUTPUT_DIR="${OUTPUT_DIR}_${PLATFORM_SAFE}"
+                                mkdir -p "$PLATFORM_OUTPUT_DIR"
+                                cd "$PLATFORM_OUTPUT_DIR" || continue
+
+                                # Save platform-specific image
+                                if docker save --platform "$PLATFORM" "$IMAGE_NAME" -o image.tar; then
+                                    PrintSuccess "Platform $PLATFORM saved to image.tar"
+                                    # Extract the tar file
+                                    if tar -xf image.tar; then
+                                        PrintSuccess "Image extracted for platform $PLATFORM"
+                                        # Process layers for this platform
+                                        process_layers_and_merge "$PLATFORM_SAFE"
+                                    else
+                                        PrintError "Failed to extract image tar for platform $PLATFORM"
+                                    fi
+                                else
+                                    PrintError "Failed to save platform $PLATFORM"
+                                fi
+
+                                cd "$ORIGINAL_DIR" || exit 1
+                            fi
+                        done
+                        exit 0
+                    else
+                        PrintWarning "No platforms found in manifest, falling back to default extraction"
+                    fi
+                else
+                    PrintWarning "Could not retrieve manifest information, falling back to default extraction"
+                fi
+            else
+                PrintWarning "jq not found, cannot parse manifest. Falling back to default extraction"
+            fi
+
+            # Fallback to default behavior
+            cd "$OUTPUT_DIR" || exit 1
+        fi
     else
-        PrintError "Failed to save image"
-        exit 1
+        # Default behavior - no platform specification
+        mkdir -p "$OUTPUT_DIR"
+        cd "$OUTPUT_DIR" || exit 1
+
+        PrintInfo "Saving image to tar file..."
+        if docker save "$IMAGE_NAME" -o image.tar; then
+            PrintSuccess "Image saved to image.tar"
+        else
+            PrintError "Failed to save image"
+            exit 1
+        fi
     fi
 
-    PrintInfo "Extracting image tar..."
-    if tar -xf image.tar; then
-        PrintSuccess "Image extracted"
-    else
-        PrintError "Failed to extract image tar"
-        exit 1
+    # Only extract the tar file if we're not in multi-platform mode
+    if [ "$PLATFORM_MODE" = false ] || [ -n "$SPECIFIC_PLATFORM" ]; then
+        PrintInfo "Extracting image tar..."
+        if tar -xf image.tar; then
+            PrintSuccess "Image extracted"
+        else
+            PrintError "Failed to extract image tar"
+            exit 1
+        fi
     fi
+
+# Function to process layers and create merged filesystem
+process_layers_and_merge() {
+    local platform_suffix="$1"
 
     # Show structure
     PrintInfo "Image structure:"
@@ -243,7 +344,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     done
 
     # Extract all layers into merged filesystem by default
-    # Create folder with pattern: image-name_image-tag_merged
+    # Create folder with pattern: image-name_image-tag_merged or image-name_image-tag_arch_merged
     if [ "$EXTRACT_ALL_LAYERS" = true ]; then
         echo
         PrintInfo "Creating merged filesystem view..."
@@ -262,7 +363,14 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         esac
         # Replace / with _ in image name
         SAFE_IMAGE_BASE=$(echo "$IMAGE_BASE" | tr '/' '_')
-        MERGED_DIR="${SAFE_IMAGE_BASE}_${IMAGE_TAG}_merged"
+
+        # Add platform suffix if provided
+        if [ -n "$platform_suffix" ]; then
+            MERGED_DIR="${SAFE_IMAGE_BASE}_${IMAGE_TAG}_${platform_suffix}_merged"
+        else
+            MERGED_DIR="${SAFE_IMAGE_BASE}_${IMAGE_TAG}_merged"
+        fi
+
         mkdir -p "$MERGED_DIR"
 
         # Extract all layers in order
@@ -282,6 +390,12 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         PrintInfo "You can now browse the complete container filesystem in:"
         echo "   $(pwd)/$MERGED_DIR"
     fi
+}
+
+# Call the function for non-platform mode or specific platform mode
+if [ "$PLATFORM_MODE" = false ] || [ -n "$SPECIFIC_PLATFORM" ]; then
+    process_layers_and_merge ""
+fi
 
     # Cleanup option
     if [ "$CLEANUP_TAR" = true ]; then
@@ -294,7 +408,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     PrintInfo "All files are in: $(pwd)"
 
     # Show what was created
-    if [ "$EXTRACT_ALL_LAYERS" = true ]; then
+    if [ "$EXTRACT_ALL_LAYERS" = true ] && [ "$PLATFORM_MODE" = false ]; then
         PrintInfo "Merged filesystem is in: $(pwd)/${MERGED_DIR}"
     fi
 fi
