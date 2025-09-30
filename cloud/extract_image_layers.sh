@@ -108,6 +108,12 @@ find_layer_files() {
     find . -name "layer.tar" -type f 2>/dev/null | sort
 }
 
+# Function to find OCI format layer files
+find_oci_layer_files() {
+    # Look for layer files in the blobs directory structure
+    find . -path "./blobs/sha256/*" -type f 2>/dev/null | sort
+}
+
 # Function to extract image name components - macOS compatible
 parse_image_name() {
     local image_name="$1"
@@ -326,22 +332,30 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                                         LAYER_COUNT=0
                                         # Find layer files using the compatible function
                                         LAYER_FILES=$(find_layer_files)
-                                        while IFS= read -r layer_tar; do
-                                            if [ -f "$layer_tar" ]; then
-                                                LAYER_COUNT=$((LAYER_COUNT + 1))
-                                                layer_dir=$(dirname "$layer_tar")
-                                                PrintInfo "Layer $LAYER_COUNT: $layer_dir"
+                                        while IFS= read -r layer_file; do
+                                                    if [ -f "$layer_file" ]; then
+                                                        LAYER_COUNT=$((LAYER_COUNT + 1))
 
-                                                # Show what's in this layer
-                                                PrintInfo "  Contents preview:"
-                                                if is_macos; then
-                                                    tar -tf "$layer_tar" 2>/dev/null | head -10 | sed 's/^/    /' || true
-                                                else
-                                                    tar -tf "$layer_tar" 2>/dev/null | head -10 | sed 's/^/    /'
-                                                fi
-                                                echo
-                                            fi
-                                        done <<< "$LAYER_FILES"
+                                                        # For OCI format, the layer_file is the full path to the blob
+                                                        # For traditional format, it's layer.tar in a directory
+                                                        if [[ "$layer_file" == ./blobs/sha256/* ]]; then
+                                                            layer_name=$(basename "$layer_file")
+                                                            PrintInfo "OCI Layer $LAYER_COUNT: $layer_name"
+                                                        else
+                                                            layer_dir=$(dirname "$layer_file")
+                                                            PrintInfo "Layer $LAYER_COUNT: $layer_dir"
+                                                        fi
+
+                                                        # Show what's in this layer
+                                                        PrintInfo "  Contents preview:"
+                                                        if is_macos; then
+                                                            tar -tf "$layer_file" 2>/dev/null | head -10 | sed 's/^/    /' || true
+                                                        else
+                                                            tar -tf "$layer_file" 2>/dev/null | head -10 | sed 's/^/    /'
+                                                        fi
+                                                        echo
+                                                    fi
+                                                done <<< "$LAYER_FILES"
 
                                         # Extract all layers into merged filesystem
                                         if [ "$EXTRACT_ALL_LAYERS" = true ]; then
@@ -354,18 +368,24 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                                             mkdir -p "$MERGED_DIR"
 
                                             # Extract all layers in order
-                                            while IFS= read -r layer_tar; do
-                                                if [ -f "$layer_tar" ]; then
-                                                    layer_dir=$(dirname "$layer_tar")
-                                                    PrintInfo "Extracting layer: $layer_dir"
-                                                    if is_macos && command -v gtar >/dev/null 2>&1; then
-                                                        gtar -xf "$layer_tar" -C "$MERGED_DIR" 2>/dev/null || tar -xf "$layer_tar" -C "$MERGED_DIR" 2>/dev/null
+                                            while IFS= read -r layer_file; do
+                                                if [ -f "$layer_file" ]; then
+                                                    if [[ "$layer_file" == ./blobs/sha256/* ]]; then
+                                                        layer_name=$(basename "$layer_file")
+                                                        PrintInfo "Extracting OCI layer: $layer_name"
                                                     else
-                                                        tar -xf "$layer_tar" -C "$MERGED_DIR" 2>/dev/null
+                                                        layer_dir=$(dirname "$layer_file")
+                                                        PrintInfo "Extracting layer: $layer_dir"
+                                                    fi
+
+                                                    if is_macos && command -v gtar >/dev/null 2>&1; then
+                                                        gtar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null || tar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null
+                                                    else
+                                                        tar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null
                                                     fi
 
                                                     if [ $? -ne 0 ]; then
-                                                        PrintWarning "Warning: Failed to extract layer $layer_dir"
+                                                        PrintWarning "Warning: Failed to extract layer $layer_file"
                                                     fi
                                                 fi
                                             done <<< "$LAYER_FILES"
@@ -472,37 +492,54 @@ process_layers_and_merge() {
     # Use the more reliable find_layer_files function
     LAYER_FILES=$(find_layer_files)
 
+    # If no traditional layer.tar files found, check for OCI format
     if [ -z "$LAYER_FILES" ]; then
-        PrintWarning "No layer.tar files found! Checking for alternative structures..."
+        PrintInfo "No traditional layer.tar files found, checking for OCI format..."
+        LAYER_FILES=$(find_oci_layer_files)
 
-        # Check for different possible structures
-        PrintInfo "Directory contents:"
-        find . -type f -name "*.tar" | head -10 || true
+        # If still no layers found, check for alternative structures
+        if [ -z "$LAYER_FILES" ]; then
+            PrintWarning "No layer files found! Checking for alternative structures..."
 
-        # Look for layers in different locations
-        if find . -name "*.tar" -type f 2>/dev/null | grep -q .; then
-            PrintWarning "Found tar files but not in expected layer.tar format"
-            find . -name "*.tar" -type f 2>/dev/null | while read -r tar_file; do
-                PrintInfo "Found tar file: $tar_file"
-            done
+            # Check for different possible structures
+            PrintInfo "Directory contents:"
+            find . -type f -name "*.tar" | head -10 || true
+
+            # Look for layers in different locations
+            if find . -name "*.tar" -type f 2>/dev/null | grep -q .; then
+                PrintWarning "Found tar files but not in expected layer format"
+                find . -name "*.tar" -type f 2>/dev/null | while read -r tar_file; do
+                    PrintInfo "Found tar file: $tar_file"
+                done
+            fi
+
+            return 1
+        else
+            PrintInfo "Found OCI format layer files"
         fi
-
-        # Don't exit here, just continue
     fi
 
     # Process each layer file
-    while IFS= read -r layer_tar; do
-        if [ -f "$layer_tar" ]; then
+    while IFS= read -r layer_file; do
+        if [ -f "$layer_file" ]; then
             LAYER_COUNT=$((LAYER_COUNT + 1))
-            layer_dir=$(dirname "$layer_tar")
-            PrintInfo "Layer $LAYER_COUNT: $layer_dir"
+
+            # For OCI format, the layer_file is the full path to the blob
+            # For traditional format, it's layer.tar in a directory
+            if [[ "$layer_file" == ./blobs/sha256/* ]]; then
+                layer_name=$(basename "$layer_file")
+                PrintInfo "OCI Layer $LAYER_COUNT: $layer_name"
+            else
+                layer_dir=$(dirname "$layer_file")
+                PrintInfo "Layer $LAYER_COUNT: $layer_dir"
+            fi
 
             # Show what's in this layer
             PrintInfo "  Contents preview:"
             if is_macos; then
-                tar -tf "$layer_tar" 2>/dev/null | head -10 | sed 's/^/    /' || true
+                tar -tf "$layer_file" 2>/dev/null | head -10 | sed 's/^/    /' || true
             else
-                tar -tf "$layer_tar" 2>/dev/null | head -10 | sed 's/^/    /'
+                tar -tf "$layer_file" 2>/dev/null | head -10 | sed 's/^/    /'
             fi
             echo
         fi
@@ -526,20 +563,27 @@ process_layers_and_merge() {
         mkdir -p "$MERGED_DIR"
 
         # Extract all layers in order using the found files
-        while IFS= read -r layer_tar; do
-            if [ -f "$layer_tar" ]; then
-                layer_dir=$(dirname "$layer_tar")
-                PrintInfo "Extracting layer: $layer_dir"
+        while IFS= read -r layer_file; do
+            if [ -f "$layer_file" ]; then
+                # For OCI format, the layer_file is the full path to the blob
+                # For traditional format, it's layer.tar in a directory
+                if [[ "$layer_file" == ./blobs/sha256/* ]]; then
+                    layer_name=$(basename "$layer_file")
+                    PrintInfo "Extracting OCI layer: $layer_name"
+                else
+                    layer_dir=$(dirname "$layer_file")
+                    PrintInfo "Extracting layer: $layer_dir"
+                fi
 
                 # Use appropriate tar command
                 if is_macos && command -v gtar >/dev/null 2>&1; then
-                    gtar -xf "$layer_tar" -C "$MERGED_DIR" 2>/dev/null || tar -xf "$layer_tar" -C "$MERGED_DIR" 2>/dev/null
+                    gtar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null || tar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null
                 else
-                    tar -xf "$layer_tar" -C "$MERGED_DIR" 2>/dev/null
+                    tar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null
                 fi
 
                 if [ $? -ne 0 ]; then
-                    PrintWarning "Warning: Failed to extract layer $layer_dir"
+                    PrintWarning "Warning: Failed to extract layer $layer_file"
                 fi
             fi
         done <<< "$LAYER_FILES"
