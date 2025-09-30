@@ -108,10 +108,28 @@ find_layer_files() {
     find . -name "layer.tar" -type f 2>/dev/null | sort
 }
 
-# Function to find OCI format layer files
+# Function to find OCI format layer files from manifest.json
 find_oci_layer_files() {
-    # Look for layer files in the blobs directory structure
-    find . -path "./blobs/sha256/*" -type f 2>/dev/null | sort
+    # Check if manifest.json exists
+    if [ ! -f "manifest.json" ]; then
+        return 1
+    fi
+
+    # Try to extract layers from manifest.json using available tools
+    if command -v jq >/dev/null 2>&1; then
+        # Use jq if available
+        jq -r '.[0].Layers[]?' manifest.json 2>/dev/null
+    elif command -v python3 >/dev/null 2>&1; then
+        # Use python3 if available
+        python3 -c 'import json; data=json.load(open("manifest.json")); [print(layer) for layer in data[0].get("Layers", [])]' 2>/dev/null
+    elif command -v python >/dev/null 2>&1; then
+        # Use python if available
+        python -c 'import json; data=json.load(open("manifest.json")); [print(layer) for layer in data[0].get("Layers", [])]' 2>/dev/null
+    else
+        # Fallback: find all blobs (less accurate but works without JSON parser)
+        PrintWarning "No JSON parser found (jq, python3, or python). Extracting all blobs - may include non-layer files."
+        find . -path "./blobs/sha256/*" -type f 2>/dev/null | sort
+    fi
 }
 
 # Function to extract image name components - macOS compatible
@@ -332,6 +350,17 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                                         LAYER_COUNT=0
                                         # Find layer files using the compatible function
                                         LAYER_FILES=$(find_layer_files)
+
+                                        # If no traditional layer.tar files found, check for OCI format
+                                        if [ -z "$LAYER_FILES" ]; then
+                                            PrintInfo "No traditional layer.tar files found, checking for OCI format..."
+                                            LAYER_FILES=$(find_oci_layer_files)
+
+                                            if [ -n "$LAYER_FILES" ]; then
+                                                PrintInfo "Found OCI format layer files"
+                                            fi
+                                        fi
+
                                         while IFS= read -r layer_file; do
                                                     if [ -f "$layer_file" ]; then
                                                         LAYER_COUNT=$((LAYER_COUNT + 1))
@@ -358,7 +387,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                                                 done <<< "$LAYER_FILES"
 
                                         # Extract all layers into merged filesystem
-                                        if [ "$EXTRACT_ALL_LAYERS" = true ]; then
+                                        if [ "$EXTRACT_ALL_LAYERS" = true ] && [ "$LAYER_COUNT" -gt 0 ]; then
                                             echo
                                             PrintInfo "Creating merged filesystem view..."
 
@@ -368,6 +397,11 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                                             mkdir -p "$MERGED_DIR"
 
                                             # Extract all layers in order
+                                            LAYER_FILES_MERGE=$(find_layer_files)
+                                            if [ -z "$LAYER_FILES_MERGE" ]; then
+                                                LAYER_FILES_MERGE=$(find_oci_layer_files)
+                                            fi
+
                                             while IFS= read -r layer_file; do
                                                 if [ -f "$layer_file" ]; then
                                                     if [[ "$layer_file" == ./blobs/sha256/* ]]; then
@@ -388,7 +422,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                                                         PrintWarning "Warning: Failed to extract layer $layer_file"
                                                     fi
                                                 fi
-                                            done <<< "$LAYER_FILES"
+                                            done <<< "$LAYER_FILES_MERGE"
 
                                             PrintSuccess "Merged filesystem created in: $MERGED_DIR"
                                             echo
