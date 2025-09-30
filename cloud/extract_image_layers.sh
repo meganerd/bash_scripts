@@ -112,7 +112,7 @@ find_layer_files() {
 parse_image_name() {
     local image_name="$1"
     local image_base image_tag
-    
+
     # Use parameter expansion instead of cut for better compatibility
     if [[ "$image_name" == *:* ]]; then
         image_base="${image_name%:*}"  # Remove :tag from end
@@ -121,10 +121,10 @@ parse_image_name() {
         image_base="$image_name"
         image_tag="latest"
     fi
-    
+
     # Replace / with _ in image name for safe directory names
     image_base="${image_base//\//_}"
-    
+
     echo "$image_base" "$image_tag"
 }
 
@@ -211,7 +211,12 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         echo "  $0 --no-merge nginx:alpine"
         echo "  $0 -p linux/amd64 myapp:latest"
         echo
-        echo "Detected OS: $(uname -s)"
+        echo "By default, the script runs non-interactively and creates a merged folder"
+        echo "with the pattern: image-name_image-tag_merged"
+        echo
+        echo "To disable merged folder creation, use --no-merge"
+        echo "To extract specific platform, use -p or --platform"
+        echo
         if is_macos; then
             echo "macOS compatibility mode enabled"
         fi
@@ -281,12 +286,12 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                         PrintInfo "Found platforms:"
                         echo "$PLATFORMS"
 
-                        # Process each platform
-                        while IFS= read -r PLATFORM; do
+                        # Process each platform - fixed for macOS compatibility
+                        ORIGINAL_DIR=$(pwd)
+                        echo "$PLATFORMS" | while IFS= read -r PLATFORM; do
                             if [ -n "$PLATFORM" ]; then
                                 PrintInfo "Extracting platform: $PLATFORM"
                                 PLATFORM_SAFE="${PLATFORM//\//_}"  # Replace / with _
-                                ORIGINAL_DIR=$(pwd)
                                 PLATFORM_OUTPUT_DIR="${OUTPUT_DIR}_${PLATFORM_SAFE}"
                                 mkdir -p "$PLATFORM_OUTPUT_DIR"
                                 cd "$PLATFORM_OUTPUT_DIR" || continue
@@ -300,11 +305,79 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                                     else
                                         tar -xf image.tar
                                     fi
-                                    
+
                                     if [ $? -eq 0 ]; then
                                         PrintSuccess "Image extracted for platform $PLATFORM"
                                         # Process layers for this platform
-                                        process_layers_and_merge "$PLATFORM_SAFE"
+                                        # Note: We can't call process_layers_and_merge here due to subshell limitations
+                                        # Instead, we'll do the processing inline
+
+                                        # Show structure
+                                        PrintInfo "Image structure:"
+                                        ls -la | grep -E "(json|tar)" || true
+
+                                        PrintInfo "Layer information:"
+                                        if [ -f "manifest.json" ]; then
+                                            PrintInfo "Found manifest.json - modern image format"
+                                            cat manifest.json | python3 -m json.tool 2>/dev/null || cat manifest.json || true
+                                        fi
+
+                                        PrintInfo "Available layers:"
+                                        LAYER_COUNT=0
+                                        # Find layer files using the compatible function
+                                        LAYER_FILES=$(find_layer_files)
+                                        while IFS= read -r layer_tar; do
+                                            if [ -f "$layer_tar" ]; then
+                                                LAYER_COUNT=$((LAYER_COUNT + 1))
+                                                layer_dir=$(dirname "$layer_tar")
+                                                PrintInfo "Layer $LAYER_COUNT: $layer_dir"
+
+                                                # Show what's in this layer
+                                                PrintInfo "  Contents preview:"
+                                                if is_macos; then
+                                                    tar -tf "$layer_tar" 2>/dev/null | head -10 | sed 's/^/    /' || true
+                                                else
+                                                    tar -tf "$layer_tar" 2>/dev/null | head -10 | sed 's/^/    /'
+                                                fi
+                                                echo
+                                            fi
+                                        done <<< "$LAYER_FILES"
+
+                                        # Extract all layers into merged filesystem
+                                        if [ "$EXTRACT_ALL_LAYERS" = true ]; then
+                                            echo
+                                            PrintInfo "Creating merged filesystem view..."
+
+                                            # Generate merged directory name
+                                            read -r SAFE_IMAGE_BASE IMAGE_TAG <<< "$(parse_image_name "$IMAGE_NAME")"
+                                            MERGED_DIR="${SAFE_IMAGE_BASE}_${IMAGE_TAG}_${PLATFORM_SAFE}_merged"
+                                            mkdir -p "$MERGED_DIR"
+
+                                            # Extract all layers in order
+                                            while IFS= read -r layer_tar; do
+                                                if [ -f "$layer_tar" ]; then
+                                                    layer_dir=$(dirname "$layer_tar")
+                                                    PrintInfo "Extracting layer: $layer_dir"
+                                                    if is_macos && command -v gtar >/dev/null 2>&1; then
+                                                        gtar -xf "$layer_tar" -C "$MERGED_DIR" 2>/dev/null || tar -xf "$layer_tar" -C "$MERGED_DIR" 2>/dev/null
+                                                    else
+                                                        tar -xf "$layer_tar" -C "$MERGED_DIR" 2>/dev/null
+                                                    fi
+
+                                                    if [ $? -ne 0 ]; then
+                                                        PrintWarning "Warning: Failed to extract layer $layer_dir"
+                                                    fi
+                                                fi
+                                            done <<< "$LAYER_FILES"
+
+                                            PrintSuccess "Merged filesystem created in: $MERGED_DIR"
+                                            echo
+                                            PrintInfo "Root filesystem contents:"
+                                            ls -la "$MERGED_DIR" || true
+                                            echo
+                                            PrintInfo "You can now browse the complete container filesystem in:"
+                                            echo "   $(pwd)/$MERGED_DIR"
+                                        fi
                                     else
                                         PrintError "Failed to extract image tar for platform $PLATFORM"
                                     fi
@@ -314,7 +387,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 
                                 cd "$ORIGINAL_DIR" || exit 1
                             fi
-                        done <<< "$PLATFORMS"
+                        done
                         exit 0
                     else
                         PrintWarning "No platforms found in manifest, falling back to default extraction"
@@ -347,13 +420,13 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # Only extract the tar file if we're not in multi-platform mode
     if [ "$PLATFORM_MODE" = false ] || [ -n "$SPECIFIC_PLATFORM" ]; then
         PrintInfo "Extracting image tar..."
-        
+
         # Use appropriate tar command for the platform
         if is_macos; then
             # Try GNU tar first if available, fall back to BSD tar
             if command -v gtar >/dev/null 2>&1; then
                 PrintInfo "Using GNU tar (gtar) for extraction"
-                gtar -xf image.tar
+                gtar -xf image.tar 2>/dev/null || tar -xf image.tar
             else
                 PrintInfo "Using BSD tar for extraction"
                 tar -xf image.tar
@@ -361,7 +434,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         else
             tar -xf image.tar
         fi
-        
+
         if [ $? -eq 0 ]; then
             PrintSuccess "Image extracted"
         else
@@ -395,28 +468,28 @@ process_layers_and_merge() {
 
     PrintInfo "Available layers:"
     LAYER_COUNT=0
-    
+
     # Use the more reliable find_layer_files function
     LAYER_FILES=$(find_layer_files)
-    
+
     if [ -z "$LAYER_FILES" ]; then
         PrintWarning "No layer.tar files found! Checking for alternative structures..."
-        
+
         # Check for different possible structures
         PrintInfo "Directory contents:"
-        find . -type f -name "*.tar" | head -10
-        
+        find . -type f -name "*.tar" | head -10 || true
+
         # Look for layers in different locations
-        if find . -name "*.tar" -type f | grep -q .; then
+        if find . -name "*.tar" -type f 2>/dev/null | grep -q .; then
             PrintWarning "Found tar files but not in expected layer.tar format"
-            find . -name "*.tar" -type f | while read -r tar_file; do
+            find . -name "*.tar" -type f 2>/dev/null | while read -r tar_file; do
                 PrintInfo "Found tar file: $tar_file"
             done
         fi
-        
-        return 1
+
+        # Don't exit here, just continue
     fi
-    
+
     # Process each layer file
     while IFS= read -r layer_tar; do
         if [ -f "$layer_tar" ]; then
@@ -426,7 +499,11 @@ process_layers_and_merge() {
 
             # Show what's in this layer
             PrintInfo "  Contents preview:"
-            tar -tf "$layer_tar" 2>/dev/null | head -10 | sed 's/^/    /'
+            if is_macos; then
+                tar -tf "$layer_tar" 2>/dev/null | head -10 | sed 's/^/    /' || true
+            else
+                tar -tf "$layer_tar" 2>/dev/null | head -10 | sed 's/^/    /'
+            fi
             echo
         fi
     done <<< "$LAYER_FILES"
@@ -453,14 +530,14 @@ process_layers_and_merge() {
             if [ -f "$layer_tar" ]; then
                 layer_dir=$(dirname "$layer_tar")
                 PrintInfo "Extracting layer: $layer_dir"
-                
+
                 # Use appropriate tar command
                 if is_macos && command -v gtar >/dev/null 2>&1; then
-                    gtar -xf "$layer_tar" -C "$MERGED_DIR" 2>/dev/null
+                    gtar -xf "$layer_tar" -C "$MERGED_DIR" 2>/dev/null || tar -xf "$layer_tar" -C "$MERGED_DIR" 2>/dev/null
                 else
                     tar -xf "$layer_tar" -C "$MERGED_DIR" 2>/dev/null
                 fi
-                
+
                 if [ $? -ne 0 ]; then
                     PrintWarning "Warning: Failed to extract layer $layer_dir"
                 fi
@@ -470,7 +547,7 @@ process_layers_and_merge() {
         PrintSuccess "Merged filesystem created in: $MERGED_DIR"
         echo
         PrintInfo "Root filesystem contents:"
-        ls -la "$MERGED_DIR" 2>/dev/null || PrintWarning "Could not list merged directory contents"
+        ls -la "$MERGED_DIR" || true
         echo
         PrintInfo "You can now browse the complete container filesystem in:"
         echo "   $(pwd)/$MERGED_DIR"
