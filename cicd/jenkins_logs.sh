@@ -11,10 +11,16 @@ OUTPUT_DIR="$DEFAULT_OUTPUT_DIR"
 
 # Check if we have at least the URL
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 <jenkins-url> [num-jobs] [output-dir]"
-  echo "Example: $0 https://prod.jenkins.onetrust.dev/job/Infrastructure-Maintenance/job/sql-db-maintenance-schedule/job/db-maintainer/ 5 ~/db-maint/"
+  ShowUsage
   exit 1
 fi
+
+ShowUsage() {
+    printf "This script requires a jenkins job along with the number of logs to retrieve and a destingation folder to store the logs.\n
+    printf "Usage: $0 <jenkins-url> [num-jobs] [output-dir]"\n
+    printf "Example: $0 https://prod.jenkins.mydomain.tld/job/Infrastructure/job/maintenance/job/maint/ 5 ~/db-maint/"\n
+"
+}
 
 JENKINS_URL="$1"
 shift
