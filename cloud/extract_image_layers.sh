@@ -108,7 +108,6 @@ find_layer_files() {
     find . -name "layer.tar" -type f 2>/dev/null | sort
 }
 
-ls
 # Function to find OCI format layer files from manifest.json
 find_oci_layer_files() {
     # Check if manifest.json exists
@@ -156,19 +155,19 @@ parse_image_name() {
 # Function to detect and display image architectures
 detect_and_display_architectures() {
     local image_name="$1"
-
+    
     PrintInfo "Detecting available architectures..."
-
+    
     # Try to get manifest information
     local manifest_output
     manifest_output=$(docker manifest inspect "$image_name" 2>/dev/null)
-
-    if [ -n "$manifest_output" ]; then
+    
+    if [ $? -eq 0 ] && [ -n "$manifest_output" ]; then
         # Try to parse with jq first
         if command -v jq >/dev/null 2>&1; then
             local platforms
             platforms=$(echo "$manifest_output" | jq -r '.manifests[]?.platform | select(. != null) | .os + "/" + .architecture' 2>/dev/null | sort -u)
-
+            
             if [ -n "$platforms" ]; then
                 local count
                 count=$(echo "$platforms" | wc -l | tr -d ' ')
@@ -199,7 +198,7 @@ try:
 except:
     pass
 ' 2>/dev/null)
-
+            
             if [ -n "$platforms" ]; then
                 local count
                 count=$(echo "$platforms" | wc -l | tr -d ' ')
@@ -230,7 +229,7 @@ try:
 except:
     pass
 ' 2>/dev/null)
-
+            
             if [ -n "$platforms" ]; then
                 local count
                 count=$(echo "$platforms" | wc -l | tr -d ' ')
@@ -242,7 +241,7 @@ except:
             fi
         fi
     fi
-
+    
     # If we get here, either manifest inspection failed or we couldn't parse it
     PrintWarning "Could not detect architectures (single-arch image or manifest unavailable)"
     PrintInfo "Image will be extracted with default architecture"
@@ -346,18 +345,18 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 
     # If in interactive mode, ask for options
     if [ "$INTERACTIVE_MODE" = true ]; then
-        read -r -p "Skip creating merged filesystem view? (y/n): " skip_merge
+        read -p "Skip creating merged filesystem view? (y/n): " skip_merge
         if [ "$skip_merge" = "y" ]; then
             EXTRACT_ALL_LAYERS=false
         fi
 
-        read -r -p "Extract specific platform? (y/n): " platform_choice
+        read -p "Extract specific platform? (y/n): " platform_choice
         if [ "$platform_choice" = "y" ]; then
-            read -r -p "Enter platform (e.g., linux/amd64, linux/arm64): " SPECIFIC_PLATFORM
+            read -p "Enter platform (e.g., linux/amd64, linux/arm64): " SPECIFIC_PLATFORM
             PLATFORM_MODE=true
         fi
 
-        read -r -p "Remove image.tar to save space? (y/n): " cleanup
+        read -p "Remove image.tar to save space? (y/n): " cleanup
         if [ "$cleanup" = "y" ]; then
             CLEANUP_TAR=true
         fi
@@ -374,15 +373,15 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     if is_macos; then
         PrintInfo "Running in macOS compatibility mode"
     fi
-
+    
     # Detect and display available architectures
     echo
     ARCH_DETECTION_RESULT=$(docker manifest inspect "$IMAGE_NAME" 2>/dev/null)
     detect_and_display_architectures "$IMAGE_NAME"
     echo
-
+    
     # Check if this is a multi-arch image and enable platform mode automatically
-    if [ "$PLATFORM_MODE" != true ]; then
+    if [ -z "$PLATFORM_MODE" ] || [ "$PLATFORM_MODE" = false ]; then
         if [ -n "$ARCH_DETECTION_RESULT" ]; then
             # Try to detect if multiple architectures exist
             arch_count=0
@@ -391,7 +390,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             elif command -v python3 >/dev/null 2>&1; then
                 arch_count=$(echo "$ARCH_DETECTION_RESULT" | python3 -c 'import json, sys; data = json.load(sys.stdin); print(len([m for m in data.get("manifests", []) if m.get("platform")]))' 2>/dev/null)
             fi
-
+            
             # If multiple architectures detected, enable platform mode
             if [ "$arch_count" -gt 1 ]; then
                 PrintInfo "Multi-architecture image detected. Extracting all architectures..."
@@ -421,7 +420,9 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             # Extract all platforms if jq is available
             if command -v jq >/dev/null 2>&1; then
                 PrintInfo "Getting platform information from manifest..."
-                if MANIFEST_OUTPUT=$(docker manifest inspect "$IMAGE_NAME" 2>/dev/null); then
+                MANIFEST_OUTPUT=$(docker manifest inspect "$IMAGE_NAME" 2>/dev/null)
+
+                if [ $? -eq 0 ] && [ -n "$MANIFEST_OUTPUT" ]; then
                     # More robust platform extraction - filter out unknown platforms (attestations/metadata)
                     PLATFORMS=$(echo "$MANIFEST_OUTPUT" | jq -r '.manifests[]?.platform | select(. != null) | select(.os != "unknown") | select(.architecture != "unknown") | .os + "/" + .architecture' 2>/dev/null | sort -u)
 
@@ -431,7 +432,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 
                         # Process each platform - fixed for macOS compatibility
                         ORIGINAL_DIR=$(pwd)
-                        while IFS= read -r PLATFORM; do
+                        echo "$PLATFORMS" | while IFS= read -r PLATFORM; do
                             if [ -n "$PLATFORM" ]; then
                                 PrintInfo "Extracting platform: $PLATFORM"
                                 PLATFORM_SAFE="${PLATFORM//\//_}"  # Replace / with _
@@ -439,28 +440,33 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                                 mkdir -p "$PLATFORM_OUTPUT_DIR"
                                 cd "$PLATFORM_OUTPUT_DIR" || continue
 
-                                # Save platform-specific image directly (no pull needed)
-                                if docker save --platform "$PLATFORM" "$IMAGE_NAME" -o image.tar 2>/dev/null; then
-                                    PrintSuccess "Platform $PLATFORM saved to image.tar"
+                                # Pull platform-specific image first, then save it
+                                PrintInfo "Pulling platform-specific image..."
+                                if docker pull --platform "$PLATFORM" "$IMAGE_NAME" >/dev/null 2>&1; then
+                                    PrintSuccess "Platform $PLATFORM pulled successfully"
+                                    
+                                    # Now save the pulled image
+                                    if docker save "$IMAGE_NAME" -o image.tar; then
+                                        PrintSuccess "Platform $PLATFORM saved to image.tar"
+                                    else
+                                        PrintError "Failed to save image for platform $PLATFORM"
+                                        cd "$ORIGINAL_DIR" || exit 1
+                                        continue
+                                    fi
                                 else
-                                    PrintError "Failed to save platform $PLATFORM"
+                                    PrintError "Failed to pull platform $PLATFORM"
                                     cd "$ORIGINAL_DIR" || exit 1
                                     continue
                                 fi
-
+                                
                                 # Extract the tar file with explicit options for macOS
-                                extraction_success=false
                                 if is_macos; then
-                                    if gtar -xf image.tar 2>/dev/null || tar -xf image.tar; then
-                                        extraction_success=true
-                                    fi
+                                    gtar -xf image.tar 2>/dev/null || tar -xf image.tar
                                 else
-                                    if tar -xf image.tar; then
-                                        extraction_success=true
-                                    fi
+                                    tar -xf image.tar
                                 fi
-
-                                if [ "$extraction_success" = true ]; then
+                                
+                                if [ $? -eq 0 ]; then
                                     PrintSuccess "Image extracted for platform $PLATFORM"
                                     # Process layers for this platform
                                     # Note: We can't call process_layers_and_merge here due to subshell limitations
@@ -468,12 +474,12 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 
                                     # Show structure
                                     PrintInfo "Image structure:"
-                                    find . -maxdepth 1 \( -name "*.json" -o -name "*.tar" \) -type f -exec ls -la {} + 2>/dev/null || true
+                                    ls -la | grep -E "(json|tar)" || true
 
                                     PrintInfo "Layer information:"
                                     if [ -f "manifest.json" ]; then
                                         PrintInfo "Found manifest.json - modern image format"
-                                        python3 -m json.tool manifest.json 2>/dev/null || cat manifest.json || true
+                                        cat manifest.json | python3 -m json.tool 2>/dev/null || cat manifest.json || true
                                     fi
 
                                     PrintInfo "Available layers:"
@@ -543,13 +549,13 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                                                 fi
 
                                                 if is_macos && command -v gtar >/dev/null 2>&1; then
-                                                    if ! gtar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null && ! tar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null; then
-                                                        PrintWarning "Warning: Failed to extract layer $layer_file"
-                                                    fi
+                                                    gtar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null || tar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null
                                                 else
-                                                    if ! tar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null; then
-                                                        PrintWarning "Warning: Failed to extract layer $layer_file"
-                                                    fi
+                                                    tar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null
+                                                fi
+
+                                                if [ $? -ne 0 ]; then
+                                                    PrintWarning "Warning: Failed to extract layer $layer_file"
                                                 fi
                                             fi
                                         done <<< "$LAYER_FILES_MERGE"
@@ -568,7 +574,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 
                                 cd "$ORIGINAL_DIR" || exit 1
                             fi
-                        done < <(echo "$PLATFORMS")
+                        done
                         exit 0
                     else
                         PrintWarning "No platforms found in manifest, falling back to default extraction"
@@ -599,25 +605,24 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     fi
 
     # Only extract the tar file if we're not in multi-platform mode
-    if [ "$PLATFORM_MODE" != true ] || [ -n "$SPECIFIC_PLATFORM" ]; then
+    if [ "$PLATFORM_MODE" = false ] || [ -n "$SPECIFIC_PLATFORM" ]; then
         PrintInfo "Extracting image tar..."
 
         # Use appropriate tar command for the platform
-        extraction_failed=false
         if is_macos; then
             # Try GNU tar first if available, fall back to BSD tar
             if command -v gtar >/dev/null 2>&1; then
                 PrintInfo "Using GNU tar (gtar) for extraction"
-                gtar -xf image.tar 2>/dev/null || tar -xf image.tar || extraction_failed=true
+                gtar -xf image.tar 2>/dev/null || tar -xf image.tar
             else
                 PrintInfo "Using BSD tar for extraction"
-                tar -xf image.tar || extraction_failed=true
+                tar -xf image.tar
             fi
         else
-            tar -xf image.tar || extraction_failed=true
+            tar -xf image.tar
         fi
 
-        if [ "$extraction_failed" = false ]; then
+        if [ $? -eq 0 ]; then
             PrintSuccess "Image extracted"
         else
             PrintError "Failed to extract image tar"
@@ -631,18 +636,18 @@ process_layers_and_merge() {
 
     # Show structure
     PrintInfo "Image structure:"
-    find . -maxdepth 1 \( -name "*.json" -o -name "*.tar" \) -type f -exec ls -la {} + 2>/dev/null || true
+    ls -la | grep -E "(json|tar)"
 
     PrintInfo "Layer information:"
     if [ -f "manifest.json" ]; then
         PrintInfo "Found manifest.json - modern image format"
         # Try multiple JSON formatters
         if command -v jq >/dev/null 2>&1; then
-            jq . manifest.json 2>/dev/null
+            cat manifest.json | jq . 2>/dev/null
         elif command -v python3 >/dev/null 2>&1; then
-            python3 -m json.tool manifest.json 2>/dev/null
+            cat manifest.json | python3 -m json.tool 2>/dev/null
         elif command -v python >/dev/null 2>&1; then
-            python -m json.tool manifest.json 2>/dev/null
+            cat manifest.json | python -m json.tool 2>/dev/null
         else
             cat manifest.json
         fi
@@ -739,13 +744,13 @@ process_layers_and_merge() {
 
                 # Use appropriate tar command
                 if is_macos && command -v gtar >/dev/null 2>&1; then
-                    if ! gtar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null && ! tar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null; then
-                        PrintWarning "Warning: Failed to extract layer $layer_file"
-                    fi
+                    gtar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null || tar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null
                 else
-                    if ! tar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null; then
-                        PrintWarning "Warning: Failed to extract layer $layer_file"
-                    fi
+                    tar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null
+                fi
+
+                if [ $? -ne 0 ]; then
+                    PrintWarning "Warning: Failed to extract layer $layer_file"
                 fi
             fi
         done <<< "$LAYER_FILES"
@@ -764,7 +769,7 @@ process_layers_and_merge() {
 }
 
 # Call the function for non-platform mode or specific platform mode
-if [ "$PLATFORM_MODE" != true ] || [ -n "$SPECIFIC_PLATFORM" ]; then
+if [ "$PLATFORM_MODE" = false ] || [ -n "$SPECIFIC_PLATFORM" ]; then
     process_layers_and_merge ""
 fi
 
@@ -779,7 +784,7 @@ fi
     PrintInfo "All files are in: $(pwd)"
 
     # Show what was created
-    if [ "$EXTRACT_ALL_LAYERS" = true ] && [ "$PLATFORM_MODE" != true ] && [ -n "${MERGED_DIR:-}" ]; then
+    if [ "$EXTRACT_ALL_LAYERS" = true ] && [ "$PLATFORM_MODE" = false ]; then
         PrintInfo "Merged filesystem is in: $(pwd)/${MERGED_DIR}"
     fi
 fi
