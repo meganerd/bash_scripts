@@ -1,19 +1,26 @@
-# Create a /tmp folder structure if it does not already exist.
-if [ ! -d  /tmp/$USER/Downloads ] ; then 
-    mkdir -p /tmp/$USER/Downloads
-    echo Directory does not exit
+echo "Loading ~/.bash_aliases"
+# Create /tmp folder structure if it does not exist
+# Create /tmp folder structure if it does not exist
+if [ ! -d "/tmp/${USER}/Downloads" ]; then
+    mkdir -p "/tmp/${USER}/Downloads"
 fi
 
-if [ -f $(which bindfs) ] ; then 
-        bindfs /tmp/$USER $HOME/tmp
-    else 
-    echo "bindfs not found, please install it."
+# Check for prerequisites and perform bindfs mount if possible
+if [ -f "$(which bindfs)" ] && \
+   [ -d "${HOME}" ] && \
+   [ -d "/tmp/${USER}" ] && \
+   [ -z "$(ls -A ${HOME}/tmp 2>/dev/null)" ]; then
+    bindfs "/tmp/${USER}" "${HOME}/tmp"
+else
+    echo "Cannot bind mount: bindfs not found, or required directories missing/empty."
 fi
 
-if [ -d $HOME/airflow ]
-    then export AIRFLOW_HOME=~/airflow
-    else mkdir $HOME/airflow
-        export AIRFLOW_HOME=~/airflow
+
+if [ ! -d "$HOME/airflow" ]; then
+    mkdir "$HOME/airflow"
+    export AIRFLOW_HOME="$HOME/airflow"
+else
+    export AIRFLOW_HOME="$HOME/airflow"
 fi
 
 if [ -d ~/bin ]; then
@@ -33,10 +40,10 @@ if [ -d /usr/local/go/bin ]; then
     export PATH="$PATH:/usr/local/go/bin"
 fi
 
-if [ -f $(which xclip) ]; then 
+if [ -f $(which xclip) ]; then
     alias pbcopy_linux='xclip -selection clipboard'
     alias pbpaste_linux='xclip -selection clipboard -o'
-else 
+else
     echo "xclip not installed, not setting pbcopy alias."
 fi
 
@@ -107,14 +114,14 @@ export PS2=""
 export PS3=""
 export PS4=""
 
-sha256_find() { 
+sha256_find() {
 find "$1" -type f -exec sha256sum -b {} + |  grep -F "$2"
-} 
+}
 
 waitforit_wrapper() {
  if [ -z "$2" ]
  then SSH_USER="$USER"
- else SSH_USER="$2" 
+ else SSH_USER="$2"
  fi
     wait-for-it.sh -p 22 -t 180 -h "$1" -- ssh "$1" -l "$SSH_USER"
 }

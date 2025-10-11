@@ -1,12 +1,23 @@
 #!/bin/bash
-longurl () {
-  url="$1"
-  while [ "$url" ]; do
-    echo "$url"
-    line=$(curl -sI "$url" | grep -P '^[Ll]ocation:\s' | head -n 1)
-    url=$(echo "$line" | sed -r 's/^[Ll]ocation:\s+(\S.*\S)\s*$/\1/g')
-	# The below pipes the output to the clipboard.  Will be implemented when proper argument handling is added.
-	#echo -n "$url" | sed -r 's/^https?:\/\/([^/]+).*\/.*$/\1/g' | xclip -selection clipboard
-	echo -n "$url" | sed -r 's/^https?:\/\/([^/]+).*\/.*$/\1/g' 
-  done
+
+# network/longurl.sh
+usage() {
+    echo "Usage: $0 URL"
+    exit 1
 }
+
+if [ $# -ne 1 ]; then
+    usage
+fi
+
+URL="$1"
+
+# Use curl to follow redirects and capture the Location header
+LONG_URL=$(curl -sLI "$URL" | grep ^Location: | tail -n 1 | cut -d' ' -f2-)
+
+if [ -z "$LONG_URL" ]; then
+    echo "This does not appear to be a short URL."
+else
+    # Remove the trailing newline and print the long URL
+    echo "${LONG_URL%$'\r'}"
+fi
