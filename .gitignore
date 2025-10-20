@@ -1,3 +1,4 @@
 *.retry
 .history/*
 __pycache__/
+.beads/*.db
