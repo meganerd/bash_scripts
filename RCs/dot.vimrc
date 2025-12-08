@@ -37,8 +37,8 @@ nnoremap <F3> :set hlsearch!<CR>
 "F7 WordProcessorOn
 map <F7> :set linebreak <CR> :set display+=lastline <CR> :set wrap <CR> :setlocal spell spelllang=en_gb <CR>
 "F8 WordProcessorOff
-map <F8> :set nowrap <CR> :set nospell <CR> 
-set statusline="%f%m%r%h%w [%Y] [0x%02.2B]%< %F%=%4v,%4l %3p%% of %L" 
+map <F8> :set nowrap <CR> :set nospell <CR>
+set statusline="%f%m%r%h%w [%Y] [0x%02.2B]%< %F%=%4v,%4l %3p%% of %L"
 set laststatus=2
 hi Search cterm=NONE ctermfg=grey ctermbg=blue
 set tabstop=8 softtabstop=0 expandtab shiftwidth=4 smarttab
