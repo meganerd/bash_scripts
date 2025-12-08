@@ -4,7 +4,7 @@
 get_jenkins_builds() {
     local full_job_url="$1"
     local netrc_file="$2"
-    local start_time=$(date +%s)
+    local start_time; start_time=$(date +%s)
     
     # Remove trailing slashes
     full_job_url="${full_job_url%/}"
@@ -131,7 +131,7 @@ get_jenkins_builds() {
         done
     
     # Calculate and display execution time
-    local end_time=$(date +%s)
+    local end_time; end_time=$(date +%s)
     local execution_time=$((end_time - start_time))
     echo ""
     echo "=================================================="

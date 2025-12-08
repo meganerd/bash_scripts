@@ -8,15 +8,15 @@
 createmode() { {
   local opts ModeLine ModeName mode modename pfx;
   freq=${1#r}; if [[ "$freq" != "$1" ]]; then opts="--reduced"; pfx="r"; fi
-  { read ModeLine ModeName mode < <( $CRTPROG $opts $x $y $freq 2>&3 | egrep -v "^[ ]*#.*$|^$"; ); 
+  { read -r ModeLine ModeName mode < <( $CRTPROG $opts $x $y "$freq" 2>&3 | grep -E -v "^[ ]*#.*$|^$"; ); 
     if [[ "$ModeLine" = "Modeline" ]]; then
       echo "mode $ModeName: $mode"
       modename="${x}x${y}@${pfx}${freq}";
-      xrandr --delmode $o $modename 2>&9
-      xrandr --rmmode $modename 2>&9
+      xrandr --delmode "$o" "$modename" 2>&9
+      xrandr --rmmode "$modename" 2>&9
       if ! $DEL; then
-        xrandr --newmode $modename $mode
-        xrandr --addmode $o $modename
+        xrandr --newmode "$modename" "$mode"
+        xrandr --addmode "$o" "$modename"
       fi
     else
       echo "error invoking $CRTPROG for mode $1." >&2
@@ -41,14 +41,14 @@ else
   [[ "${1:0:1}" = "-" ]] && { echo "unknown option $1"; exit 1; }
   
   o="$1";
-  let x=$2 y=$3;
+  (( x=$2, y=$3 ));
   shift 3;
 
   echo "--output $o: ${x}x${y}"
   while [[ $# -ge  1 ]]; do
       if $DEL; then
-        xrandr --delmode $o ${x}x${y}@$1
-        xrandr --rmmode ${x}x${y}@$1
+        xrandr --delmode "$o" "${x}x${y}@$1"
+        xrandr --rmmode "${x}x${y}@$1"
       else createmode "$1";
       fi
       shift;

@@ -3,12 +3,12 @@
 # written by: Gustin Johnson <gustin@echostar.ca>
 # version: 0.6
 #
-## Begin variables section: 
+## Begin variables section:
 ##
 # Must be one of: RsyncRun  RdiffRun  DuplicityRun
 BackupFunction="RdiffRun"
 
-# HOST may also be an Amazon S3 container name  
+# HOST may also be an Amazon S3 container name
 HOST=hostname.domain.tld
 USERNAME=userid
 PORT=22
@@ -20,7 +20,7 @@ SSH_KEY="/path/to/.ssh/id_dsa"	# this is the path to the rsa/dsa key
 declare -a  sourcedir=( "/etc" "/usr/local" "/home" )
 
 REMOTE_PATH="home/rdiff/"	# path on the remote host to save files to
-					# duplicty creates a lot of files, this is 
+					# duplicty creates a lot of files, this is
 					# recommended to be set.
 
 # Duplicity Specific Options
@@ -38,7 +38,7 @@ PINGHOST=$HOST	# if we cannot ping the backup server, change this value to somet
 
 ## ======== You should not need to edit anything below this line ========= ##
 
-TIMESTAMP=`date +%F.%M`			# not currently used.  
+TIMESTAMP=$(date +%F.%M)			# not currently used.
 
 # number of elements in the array.  Should not need to be changed.
 # used to control the number of times the backup loop runs, should be once on every
@@ -49,22 +49,22 @@ elements="${#sourcedir[*]}"
 
 CheckNet ()
 {
-  ping -c 1 $HOST  >& /dev/null ; # Checking to see if we have net connectivity to the backup server
+  ping -c 1 "$HOST"  >& /dev/null ; # Checking to see if we have net connectivity to the backup server
 }
 
 RsyncRun ()
 {
-  for (( i = 0  ; i < $elements ; i++ ))
+  for (( i = 0  ; i < elements ; i++ ))
   do
-  rsync -t -ruz --progress --delete --inplace --rsh="ssh -c $SSH_CIPHER -p $PORT -i $SSH_KEY" ${sourcedir[$i]} $USERNAME@$HOST:$REMOTE_PATH 
+  rsync -t -ruz --progress --delete --inplace --rsh="ssh -c $SSH_CIPHER -p $PORT -i $SSH_KEY" "${sourcedir[$i]}" "$USERNAME"@"$HOST":"$REMOTE_PATH"
   done
 }
 
 RdiffRun ()
 {
-for (( i = 0  ; i < $elements ; i++ ))
+for (( i = 0  ; i < elements ; i++ ))
 do
- /usr/bin/rdiff-backup -v 4 --no-acl --no-eas --create-full-path --remote-schema "ssh -C -c $SSH_CIPHER -p $PORT -i $SSH_KEY %s rdiff-backup --server" ${sourcedir[$i]} $USERNAME@$HOST::$REMOTE_PATH/${sourcedir[$i]}
+ /usr/bin/rdiff-backup -v 4 --no-acl --no-eas --create-full-path --remote-schema "ssh -C -c $SSH_CIPHER -p $PORT -i $SSH_KEY %s rdiff-backup --server" "${sourcedir[$i]}" "$USERNAME"@"$HOST"::"$REMOTE_PATH"/"${sourcedir[$i]}"
 done
 }
 
@@ -74,9 +74,9 @@ DuplicityRun ()
  # This environment variable is passed from duplicity to GnuPG
  export PASSPHRASE=$GPG_PASSPHRASE ;
 
- for (( i = 0  ; i < $elements ; i++ ))
+ for (( i = 0  ; i < elements ; i++ ))
  do
- duplicity --allow-source-mismatch --ssh-options "-oCipher=$SSH_CIPHER -oIdentityFile=$SSH_KEY" --encrypt-key $GPG_KEY ${sourcedir[$i]} scp://$USERNAME@$HOST:/$REMOTE_PATH
+ duplicity --allow-source-mismatch --ssh-options "-oCipher=$SSH_CIPHER -oIdentityFile=$SSH_KEY" --encrypt-key "$GPG_KEY" "${sourcedir[$i]}" scp://"$USERNAME"@"$HOST":/"$REMOTE_PATH"
 
  # clearing the PASSPHRASE environment variable since we don't want this hanging around
  done
@@ -84,7 +84,7 @@ DuplicityRun ()
 }
 
 # Setting the time stamp in the log
- echo "### Starting remote backup at `date` ###"
+ echo "### Starting remote backup at $(date) ###"
 # Check if available via ping, backup if online
 if CheckNet ; then
  echo "### Internet connection is alive and kicking, begin backup. ###"
@@ -93,7 +93,7 @@ if CheckNet ; then
 # Run the selected backup funtion
 $BackupFunction
 
-echo " ### completed backup at `date` ###"
+echo " ### completed backup at $(date) ###"
  exit 0
 
 else

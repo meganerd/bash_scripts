@@ -155,19 +155,17 @@ parse_image_name() {
 # Function to detect and display image architectures
 detect_and_display_architectures() {
     local image_name="$1"
-    
+
     PrintInfo "Detecting available architectures..."
-    
+
     # Try to get manifest information
     local manifest_output
-    manifest_output=$(docker manifest inspect "$image_name" 2>/dev/null)
-    
-    if [ $? -eq 0 ] && [ -n "$manifest_output" ]; then
+    if manifest_output=$(docker manifest inspect "$image_name" 2>/dev/null) && [ -n "$manifest_output" ]; then
         # Try to parse with jq first
         if command -v jq >/dev/null 2>&1; then
             local platforms
             platforms=$(echo "$manifest_output" | jq -r '.manifests[]?.platform | select(. != null) | .os + "/" + .architecture' 2>/dev/null | sort -u)
-            
+
             if [ -n "$platforms" ]; then
                 local count
                 count=$(echo "$platforms" | wc -l | tr -d ' ')
@@ -198,7 +196,7 @@ try:
 except:
     pass
 ' 2>/dev/null)
-            
+
             if [ -n "$platforms" ]; then
                 local count
                 count=$(echo "$platforms" | wc -l | tr -d ' ')
@@ -229,7 +227,7 @@ try:
 except:
     pass
 ' 2>/dev/null)
-            
+
             if [ -n "$platforms" ]; then
                 local count
                 count=$(echo "$platforms" | wc -l | tr -d ' ')
@@ -241,7 +239,7 @@ except:
             fi
         fi
     fi
-    
+
     # If we get here, either manifest inspection failed or we couldn't parse it
     PrintWarning "Could not detect architectures (single-arch image or manifest unavailable)"
     PrintInfo "Image will be extracted with default architecture"
@@ -345,18 +343,18 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 
     # If in interactive mode, ask for options
     if [ "$INTERACTIVE_MODE" = true ]; then
-        read -p "Skip creating merged filesystem view? (y/n): " skip_merge
+        read -r -p "Skip creating merged filesystem view? (y/n): " skip_merge
         if [ "$skip_merge" = "y" ]; then
             EXTRACT_ALL_LAYERS=false
         fi
 
-        read -p "Extract specific platform? (y/n): " platform_choice
+        read -r -p "Extract specific platform? (y/n): " platform_choice
         if [ "$platform_choice" = "y" ]; then
-            read -p "Enter platform (e.g., linux/amd64, linux/arm64): " SPECIFIC_PLATFORM
+            read -r -p "Enter platform (e.g., linux/amd64, linux/arm64): " SPECIFIC_PLATFORM
             PLATFORM_MODE=true
         fi
 
-        read -p "Remove image.tar to save space? (y/n): " cleanup
+        read -r -p "Remove image.tar to save space? (y/n): " cleanup
         if [ "$cleanup" = "y" ]; then
             CLEANUP_TAR=true
         fi
@@ -373,13 +371,13 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     if is_macos; then
         PrintInfo "Running in macOS compatibility mode"
     fi
-    
+
     # Detect and display available architectures
     echo
     ARCH_DETECTION_RESULT=$(docker manifest inspect "$IMAGE_NAME" 2>/dev/null)
     detect_and_display_architectures "$IMAGE_NAME"
     echo
-    
+
     # Check if this is a multi-arch image and enable platform mode automatically
     if [ -z "$PLATFORM_MODE" ] || [ "$PLATFORM_MODE" = false ]; then
         if [ -n "$ARCH_DETECTION_RESULT" ]; then
@@ -390,7 +388,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             elif command -v python3 >/dev/null 2>&1; then
                 arch_count=$(echo "$ARCH_DETECTION_RESULT" | python3 -c 'import json, sys; data = json.load(sys.stdin); print(len([m for m in data.get("manifests", []) if m.get("platform")]))' 2>/dev/null)
             fi
-            
+
             # If multiple architectures detected, enable platform mode
             if [ "$arch_count" -gt 1 ]; then
                 PrintInfo "Multi-architecture image detected. Extracting all architectures..."
@@ -420,9 +418,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             # Extract all platforms if jq is available
             if command -v jq >/dev/null 2>&1; then
                 PrintInfo "Getting platform information from manifest..."
-                MANIFEST_OUTPUT=$(docker manifest inspect "$IMAGE_NAME" 2>/dev/null)
-
-                if [ $? -eq 0 ] && [ -n "$MANIFEST_OUTPUT" ]; then
+                if MANIFEST_OUTPUT=$(docker manifest inspect "$IMAGE_NAME" 2>/dev/null) && [ -n "$MANIFEST_OUTPUT" ]; then
                     # More robust platform extraction - filter out unknown platforms (attestations/metadata)
                     PLATFORMS=$(echo "$MANIFEST_OUTPUT" | jq -r '.manifests[]?.platform | select(. != null) | select(.os != "unknown") | select(.architecture != "unknown") | .os + "/" + .architecture' 2>/dev/null | sort -u)
 
@@ -444,7 +440,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                                 PrintInfo "Pulling platform-specific image..."
                                 if docker pull --platform "$PLATFORM" "$IMAGE_NAME" >/dev/null 2>&1; then
                                     PrintSuccess "Platform $PLATFORM pulled successfully"
-                                    
+
                                     # Now save the pulled image
                                     if docker save "$IMAGE_NAME" -o image.tar; then
                                         PrintSuccess "Platform $PLATFORM saved to image.tar"
@@ -458,14 +454,15 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                                     cd "$ORIGINAL_DIR" || exit 1
                                     continue
                                 fi
-                                
+
                                 # Extract the tar file with explicit options for macOS
                                 if is_macos; then
                                     gtar -xf image.tar 2>/dev/null || tar -xf image.tar
                                 else
                                     tar -xf image.tar
                                 fi
-                                
+
+                                # shellcheck disable=SC2181
                                 if [ $? -eq 0 ]; then
                                     PrintSuccess "Image extracted for platform $PLATFORM"
                                     # Process layers for this platform
@@ -479,7 +476,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                                     PrintInfo "Layer information:"
                                     if [ -f "manifest.json" ]; then
                                         PrintInfo "Found manifest.json - modern image format"
-                                        cat manifest.json | python3 -m json.tool 2>/dev/null || cat manifest.json || true
+                                        python3 -m json.tool < manifest.json 2>/dev/null || cat manifest.json || true
                                     fi
 
                                     PrintInfo "Available layers:"
@@ -554,6 +551,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                                                     tar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null
                                                 fi
 
+                                                # shellcheck disable=SC2181
                                                 if [ $? -ne 0 ]; then
                                                     PrintWarning "Warning: Failed to extract layer $layer_file"
                                                 fi
@@ -622,6 +620,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             tar -xf image.tar
         fi
 
+        # shellcheck disable=SC2181
         if [ $? -eq 0 ]; then
             PrintSuccess "Image extracted"
         else
@@ -636,6 +635,7 @@ process_layers_and_merge() {
 
     # Show structure
     PrintInfo "Image structure:"
+    # shellcheck disable=SC2010
     ls -la | grep -E "(json|tar)"
 
     PrintInfo "Layer information:"
@@ -643,11 +643,11 @@ process_layers_and_merge() {
         PrintInfo "Found manifest.json - modern image format"
         # Try multiple JSON formatters
         if command -v jq >/dev/null 2>&1; then
-            cat manifest.json | jq . 2>/dev/null
+            jq . manifest.json 2>/dev/null
         elif command -v python3 >/dev/null 2>&1; then
-            cat manifest.json | python3 -m json.tool 2>/dev/null
+            python3 -m json.tool < manifest.json 2>/dev/null
         elif command -v python >/dev/null 2>&1; then
-            cat manifest.json | python -m json.tool 2>/dev/null
+            python -m json.tool < manifest.json 2>/dev/null
         else
             cat manifest.json
         fi
@@ -749,6 +749,7 @@ process_layers_and_merge() {
                     tar -xf "$layer_file" -C "$MERGED_DIR" 2>/dev/null
                 fi
 
+                # shellcheck disable=SC2181
                 if [ $? -ne 0 ]; then
                     PrintWarning "Warning: Failed to extract layer $layer_file"
                 fi

@@ -63,7 +63,7 @@ fi
 
 # Create a temporary directory for parallel processing
 temp_dir=$(mktemp -d)
-trap "rm -rf $temp_dir" EXIT
+trap 'rm -rf "$temp_dir"' EXIT
 
 # Create a wrapper script for process_repo in the temp directory
 cat > "$temp_dir/process_repo.sh" << EOL
@@ -77,35 +77,35 @@ repo="\$1"
 safe_repo="\${repo//\//_}"
 safe_repo="\${safe_repo// /_}"
 temp_file="\$temp_dir/\$safe_repo.txt"
-    
+
 echo "Processing repository: \$repo"
 # Get tags for the repository with error handling
 images="\$(az acr repository show-tags -n "\$registry_name" --repository "\$repo" --output tsv --orderby time_desc)" || {
     echo "ERROR: Failed to fetch tags for repository '\$repo'" >&2
     exit 1
 }
-    
+
 # Debug info
 echo "Found \$(echo "\$images" | wc -w) tags for \$repo" >&2
-    
+
 # Process each tag to get date and digest (hash)
 for tag in \$images; do
     echo "Processing tag: \$repo:\$tag" >&2
-    
+
     # Get manifest details including digest and creation time
     manifest_info="\$(az acr repository show -n "\$registry_name" --image "\$repo:\$tag" --output json 2>/dev/null)"
-    
+
     if [ -n "\$manifest_info" ]; then
         # Extract digest (hash) - remove 'sha256:' prefix if present
         digest="\$(echo "\$manifest_info" | grep -o '\"digest\":\"[^\"]*\"' | sed 's/\"digest\":\"//g' | sed 's/\"//g' | sed 's/sha256://g')"
-        
+
         # Extract timestamp and convert to ISO format
         timestamp="\$(echo "\$manifest_info" | grep -o '\"lastUpdateTime\":\"[^\"]*\"' | sed 's/\"lastUpdateTime\":\"//g' | sed 's/\"//g')"
-        
+
         # Escape any commas in the repository or tag name to maintain CSV integrity
         safe_repo_csv="\$(echo "\$repo" | sed 's/,/\\,/g')"
         safe_tag_csv="\$(echo "\$tag" | sed 's/,/\\,/g')"
-        
+
         # Write to temp file in CSV format: repository,tag,date,hash
         echo "\$safe_repo_csv,\$safe_tag_csv,\$timestamp,\$digest" >> "\$temp_file"
     else
@@ -140,16 +140,16 @@ echo "================================================="
 if command -v parallel &>/dev/null; then
     echo "Using GNU parallel with $max_jobs parallel jobs..."
     # Use printf and xargs to handle repos with spaces properly
-    printf "%s\n" $repos | parallel -j "$max_jobs" "$temp_dir/process_repo.sh"
+    printf "%s\n" "$repos" | parallel -j "$max_jobs" "$temp_dir/process_repo.sh"
 else
     echo "GNU parallel not found, using background processes with $max_jobs parallel jobs..."
     # Process repositories in parallel using background processes
     count=0
     # Use printf and read to handle repos with spaces properly
-    printf "%s\n" $repos | while IFS= read -r repo; do
+    printf "%s\n" "$repos" | while IFS= read -r repo; do
         echo "Starting process for repository: $repo"
         "$temp_dir/process_repo.sh" "$repo" &
-        
+
         # Limit the number of concurrent background processes
         (( count++ ))
         if (( count >= max_jobs )); then
@@ -158,7 +158,7 @@ else
             (( count-- ))
         fi
     done
-    
+
     # Wait for all remaining background processes to complete
     echo "Waiting for all remaining jobs to complete..."
     wait
@@ -195,22 +195,22 @@ if [ ! -s "$destination" ]; then
     echo "WARNING: The destination file is empty. Check for errors in processing."
     echo "Temp directory contents:"
     ls -la "$temp_dir"
-    
+
     # Check if any repos were processed
     if [ -z "$repos" ]; then
         echo "ERROR: No repositories were fetched from the registry."
         echo "Check that '$registry_name' is a valid registry and you have proper access."
     fi
-    
+
     echo "Debug information:"
     echo "- Registry name: $registry_name"
     echo "- Destination: $destination"
     echo "- Max jobs: $max_jobs"
     echo "- Temp directory: $temp_dir"
     echo "- Repositories found: $(echo "$repos" | wc -w)"
-    
+
     echo "Temp directory file list:"
-    find "$temp_dir" -type f | xargs ls -la
+    find "$temp_dir" -type f -exec ls -la {} +
 fi
 
 echo "Completed! All repositories and tags saved to $destination"

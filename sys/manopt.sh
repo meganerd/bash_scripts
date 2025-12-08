@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Found here: https://stackoverflow.com/questions/19198721/is-there-a-way-to-look-for-a-flag-in-a-man-page
 # SYNOPSIS
 #   manopt command opt

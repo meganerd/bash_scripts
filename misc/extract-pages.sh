@@ -3,9 +3,10 @@
 
 # Check for the existance of GhostScript (gs).
 
-which gs &> /dev/null
-
-[ $? -ne 0 ]  && echo "GhostScript utility is not available, please install it" && exit 1
+if ! which gs &>/dev/null; then
+    echo "GhostScript utility is not available, please install it"
+    exit 1
+fi
 
 ShowUsage()
 {
@@ -22,7 +23,7 @@ For example: extract-pages.sh -i mypdf.pdf -f 3 -l 5\n
 ExtractPages()
 {
 gs -sDEVICE=pdfwrite -dNOPAUSE -dBATCH -dSAFER \
-       -dFirstPage=$FirstPage -dLastPage=$LastPage -sOutputFile="$InFile"-p"$FirstPage"-p"$LastPage".pdf "$InFile" 
+   -dFirstPage="$FirstPage" -dLastPage="$LastPage" -sOutputFile="$InFile"-p"$FirstPage"-p"$LastPage".pdf "$InFile"
 }
 
 # Check to see if there were any parameters passed, if not, display basic usage example.
@@ -40,10 +41,11 @@ while getopts "i:f:l:h" opt ; do
 	     FirstPage=$OPTARG ;;
 	  l) lflag=1
 	     LastPage=$OPTARG ;;
-	  h) ShowUsage;;
-	  :) ShowUsage;;
+	h) ShowUsage ;;
+	:) ShowUsage ;;
+	*) ShowUsage ;;
 	esac
- 
+
 done
 
 if [[ "$iflag" == "1" ]] && [[ "$fflag" == "1" ]] && [[ "$lflag" == "1" ]] ; then
@@ -52,4 +54,3 @@ if [[ "$iflag" == "1" ]] && [[ "$fflag" == "1" ]] && [[ "$lflag" == "1" ]] ; the
     ShowUsage ;
     exit 1
     fi
- 

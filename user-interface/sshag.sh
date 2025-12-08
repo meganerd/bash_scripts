@@ -3,7 +3,7 @@
 # http://superuser.com/questions/141044/sharing-the-same-ssh-agent-among-multiple-login-sessions#answer-141241
 
 function sshag_findsockets {
-    find /tmp -uid $(id -u) -type s -name agent.\* 2>/dev/null
+    find /tmp -uid "$(id -u)" -type s -name agent.\* 2>/dev/null
 }
 
 function sshag_testsocket {
@@ -20,11 +20,11 @@ function sshag_testsocket {
         return 2
     fi
 
-    if [ -S $SSH_AUTH_SOCK ] ; then
+    if [ -S "$SSH_AUTH_SOCK" ] ; then
         ssh-add -l > /dev/null
         if [ $? = 2 ] ; then
             echo "Socket $SSH_AUTH_SOCK is dead!  Deleting!" >&2
-            rm -f $SSH_AUTH_SOCK
+            rm -f "$SSH_AUTH_SOCK"
             return 4
         else
             return 0
@@ -50,14 +50,14 @@ function sshag_init {
     if [ $AGENTFOUND = 0 ] ; then
         for agentsocket in $(sshag_findsockets) ; do
             if [ $AGENTFOUND != 0 ] ; then break ; fi
-            if sshag_testsocket $agentsocket ; then AGENTFOUND=1 ; fi
+            if sshag_testsocket "$agentsocket" ; then AGENTFOUND=1 ; fi
         done
     fi
 
     # If at this point we still haven't located an agent, it's time to
     # start a new one
     if [ $AGENTFOUND = 0 ] ; then
-        eval "(ssh-agent -s)" 
+        eval "(ssh-agent -s)"
     fi
 
     # Clean up
@@ -67,13 +67,14 @@ function sshag_init {
     { echo "Keys:";  ssh-add -l | sed 's/^/    /'; } >&2
 
     # Display the found socket
-    echo $SSH_AUTH_SOCK;
+    echo "$SSH_AUTH_SOCK";
 }
 
 
 # If we are not being sourced, but rather running as a subshell,
 # let people know how to use the output.
 if [[ $0 =~ sshag ]]; then
+# shellcheck disable=SC2016
     echo 'Output should be assigned to the environment variable $SSH_AUTH_SOCK.' >&2
     sshag_init
 # Otherwise, make it convenient to invoke the search.

@@ -9,7 +9,7 @@ log2() {
   local x=$1 n=1 l=0
   while (( x>n && n>0 ))
   do
-    let n*=2 l++
+    (( n*=2, l++ ))
   done
   echo $l
 }
@@ -21,8 +21,8 @@ get_n_rand_bits() {
   local n=$1 rnd=$RANDOM rnd_bitlen=15
   while (( rnd_bitlen < n ))
   do
-    rnd=$(( rnd<<15|$RANDOM ))
-    let rnd_bitlen+=15
+    rnd=$(( rnd<<15|RANDOM ))
+    (( rnd_bitlen+=15 ))
   done
   echo $(( rnd>>(rnd_bitlen-n) ))
 }
@@ -34,7 +34,7 @@ get_n_rand_bits() {
 get_n_rand_bits_alt() {
   local n=$1
   local nb_bytes=$(( (n+7)/8 ))
-  local rnd=$(od --read-bytes=$nb_bytes --address-radix=n --format=uL /dev/urandom | tr --delete " ")
+  local rnd; rnd=$(od --read-bytes=$nb_bytes --address-radix=n --format=uL /dev/urandom | tr --delete " ")
   echo $(( rnd>>(nb_bytes*8-n) ))
 }
 
@@ -43,14 +43,14 @@ get_n_rand_bits_alt() {
 rand() {
   local rnd max=$1
   # get number of bits needed to represent $max
-  local bitlen=$(log2 $((max+1)))
+  local bitlen; bitlen=$(log2 $((max+1)))
   while
     # could use get_n_rand_bits_alt instead if /dev/urandom is preferred over $RANDOM
-    rnd=$(get_n_rand_bits $bitlen)
+    rnd=$(get_n_rand_bits "$bitlen")
     (( rnd > max ))
   do :
   done
-  echo $rnd
+  echo "$rnd"
 }
 
 # MAIN SCRIPT
@@ -59,11 +59,11 @@ rand() {
 if (( $# != 1 && $# != 2 ))
 then
   cat <<EOF 1>&2
-Usage: $(basename $0) [min] max
+Usage: $(basename "$0") [min] max
 
 Returns an integer distributed uniformly at random in the range {min..max}
 min defaults to 0
-(max - min) can be up to 2**60-1  
+(max - min) can be up to 2**60-1
 EOF
   exit 1
 fi
@@ -81,11 +81,11 @@ done
 # ensure that min <= max
 if (( min > max ))
 then
-  echo "$(basename $0): error: min is greater than max" 1>&2
+  echo "$(basename "$0"): error: min is greater than max" 1>&2
   exit 1
 fi
 
 # need absolute value of diff since min (and also max) may be negative
 diff=$((max-min)) && diff=${diff#-}
 
-echo $(( $(rand $diff) + min ))
+echo $(( $(rand "$diff") + min ))

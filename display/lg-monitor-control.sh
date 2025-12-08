@@ -75,7 +75,7 @@ send_command() {
     # Format: [Command1][Command2][ ][Set ID][ ][Data][Cr]
     # The format requires spaces between components and a carriage return at the end
     # Make sure MONITOR_ID is padded to 2 digits
-    local padded_id=$(printf "%02d" "$MONITOR_ID")
+    local padded_id; padded_id=$(printf "%02d" "$MONITOR_ID")
     local command="${cmd1}${cmd2} ${padded_id} ${data}\r"
     
     # For debugging

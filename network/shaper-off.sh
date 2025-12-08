@@ -13,6 +13,6 @@ fi
 
 echo "removing shaping rules:"
 # clean existing down- and uplink qdiscs, hide errors
-tc qdisc del dev $DEV root
-tc qdisc del dev $DEV ingress 
+tc qdisc del dev "$DEV" root
+tc qdisc del dev "$DEV" ingress
 echo "complete"

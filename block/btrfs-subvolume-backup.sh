@@ -25,7 +25,7 @@ lock=/var/run/$PROG
 
 usage() {
     cat <<EOF
-Usage: 
+Usage:
 cd /mnt/source_btrfs_pool
 $PROG [--init] [--keep|-k num] [--dest hostname] volume_name /mnt/backup_btrfs_pool
 
@@ -41,7 +41,7 @@ pool (on other drives)
 If your backup destination is another machine, you'll need to add a few
 ssh commands this script
 
-The num sanpshots to keep is to give snapshots you can recover data from 
+The num sanpshots to keep is to give snapshots you can recover data from
 and they get deleted after num runs. Set to 0 to disable (one snapshot will
 be kept since it's required for the next diff to be computed).
 EOF
@@ -60,11 +60,11 @@ die () {
 
     # This is a fancy shell core dumper
     if echo "$msg" | grep -q 'Error line .* with status'; then
-	line=$(echo "$msg" | sed 's/.*Error line \(.*\) with status.*/\1/')
+	[[ "$msg" =~ Error\ line\ (.*)\ with\ status ]] && [[ "$msg" =~ Error line (.*) with status ]] && line="${BASH_REMATCH[1]}"
 	echo " DIE: Code dump:" >&2
 	nl -ba "$0" | grep -3 "\b$line\b" >&2
     fi
-    
+
     exit 1
 }
 
@@ -88,7 +88,6 @@ do
     case "$1" in
         -h|--help|--usage)
             usage
-            shift
             ;;
 
 	--keep|-k)
@@ -114,7 +113,7 @@ do
 	    break
 	    ;;
 
-        *) 
+        *)
 	    echo "Internal error!"
 	    exit 1
 	    ;;
@@ -173,13 +172,16 @@ $ssh ln -snf "$src_newsnaprw" "$dest_pool/${vol}_last_rw"
 
 # How many snapshots to keep on the source btrfs pool (both read
 # only and read-write).
+# Local
+# shellcheck disable=SC2012
 ls -rd "${vol}"_ro* | tail -n +$(( keep + 1 ))| while read -r snap
 do
-    btrfs subvolume delete "$snap"
+	btrfs subvolume delete "$snap"
 done
+# shellcheck disable=SC2012
 ls -rd "${vol}"_rw* | tail -n +$(( keep + 1 ))| while read -r snap
 do
-    btrfs subvolume delete "$snap"
+	btrfs subvolume delete "$snap"
 done
 
 # Same thing for destination (assume the same number of snapshots to keep,
