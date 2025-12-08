@@ -64,7 +64,7 @@ mkdir -p "${tmpdir}/${IMAGE_B}" && tar -xf "${tmpdir}"/B.tar -C "${tmpdir}/${IMA
     cd "${tmpdir}"
     diff --unified -arq "${IMAGE_A}" "${IMAGE_B}" 2>&1 | grep -v "No such file or directory" | grep -v "is a character special file" | grep -v "is a block special file" | tee "${tmpdir}/diff"
 )
-cat "${tmpdir}/diff" | wc -l > "${tmpdir}/difflinecount"
+wc -l < "${tmpdir}/diff" > "${tmpdir}/difflinecount"
 set +e
 
 code=1

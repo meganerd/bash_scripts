@@ -60,7 +60,7 @@ die () {
 
     # This is a fancy shell core dumper
     if echo "$msg" | grep -q 'Error line .* with status'; then
-	[[ "$msg" =~ Error\ line\ (.*)\ with\ status ]] && [[ "$msg" =~ Error line (.*) with status ]] && line="${BASH_REMATCH[1]}"
+	[[ "$msg" =~ Error line (.*) with status ]] && line="${BASH_REMATCH[1]}"
 	echo " DIE: Code dump:" >&2
 	nl -ba "$0" | grep -3 "\b$line\b" >&2
     fi

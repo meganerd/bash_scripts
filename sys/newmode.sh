@@ -8,7 +8,7 @@
 createmode() { {
   local opts ModeLine ModeName mode modename pfx;
   freq=${1#r}; if [[ "$freq" != "$1" ]]; then opts="--reduced"; pfx="r"; fi
-  { read -r ModeLine ModeName mode < <( $CRTPROG $opts $x $y "$freq" 2>&3 | grep -E -v "^[ ]*#.*$|^$"; ); 
+  { read -r ModeLine ModeName mode < <( $CRTPROG $opts "$x" "$y" "$freq" 2>&3 | grep -E -v "^[ ]*#.*$|^$"; );
     if [[ "$ModeLine" = "Modeline" ]]; then
       echo "mode $ModeName: $mode"
       modename="${x}x${y}@${pfx}${freq}";
@@ -32,14 +32,14 @@ A more complete example (use https://arachnoid.com/modelines/ to for more values
 newmode.sh [--gtf/--del] VGA1 1920 1200 r60 60 r70 r75
 
 EOQ
-  
-else 
+
+else
 
   CRTPROG=cvt; DEL=false;
   [[ "$1" = "--gtf" ]] && { CRTPROG=gtf; shift; }
   [[ "$1" = "--del" ]] && { DEL=true; shift; }
   [[ "${1:0:1}" = "-" ]] && { echo "unknown option $1"; exit 1; }
-  
+
   o="$1";
   (( x=$2, y=$3 ));
   shift 3;
@@ -53,11 +53,10 @@ else
       fi
       shift;
   done
-  
+
   if ! $DEL; then
     echo "xrandr --output $o --mode ${x}x${y}@$freq"
     echo
   fi
 
 fi
-

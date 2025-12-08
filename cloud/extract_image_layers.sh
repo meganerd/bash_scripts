@@ -471,6 +471,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 
                                     # Show structure
                                     PrintInfo "Image structure:"
+# shellcheck disable=SC2010
                                     ls -la | grep -E "(json|tar)" || true
 
                                     PrintInfo "Layer information:"

@@ -11,7 +11,7 @@ log2() {
   do
     (( n*=2, l++ ))
   done
-  echo $l
+  echo "$l"
 }
 
 # uses $RANDOM to generate an n-bit random bitstring uniformly at random
