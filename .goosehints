@@ -1,0 +1,42 @@
+# Bash Scripts Project
+
+## Issue Tracking
+We use Beads for issue tracking in this project.
+- Check ready work: `bd ready`
+- List issues: `bd list`
+- Issue prefix: `bash_scripts-N`
+
+## Project Context
+Collection of bash utility scripts for system administration and automation.
+
+### Development Guidelines
+- All scripts must have error handling (set -euo pipefail at minimum)
+- Use proper logging (log to syslog or dedicated log files)
+- Include usage/help text in each script (-h/--help)
+- Add comments explaining complex logic
+- Make scripts idempotent where possible
+- Test scripts in safe environments first
+
+### Code Standards
+- Use shellcheck for linting
+- Follow Google Shell Style Guide
+- Proper quoting of variables
+- Use functions for reusable code
+- Exit codes: 0 (success), 1 (general error), 2 (usage error)
+
+### Common Issues to Watch For
+- Missing error handling
+- Unquoted variables leading to word splitting
+- Missing input validation
+- Hard-coded paths (use configuration or parameters)
+- No logging or debugging output
+- Scripts not being idempotent
+
+## Workflow
+1. Check `bd ready` for prioritized tasks
+2. Review script for issues
+3. Update issue: `bd update <id> --status in_progress`
+4. Make changes and test thoroughly
+5. Run shellcheck
+6. Test in dev environment
+7. Close issue: `bd close <id> --reason "description"`
