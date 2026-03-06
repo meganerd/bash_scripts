@@ -29,7 +29,7 @@ if docker create --name "$CONTAINER_NAME" "$IMAGE_NAME" >/dev/null 2>&1; then
     echo "✓ Container created successfully"
 else
     echo "❌ Failed to create container from $IMAGE_NAME"
-    echo "Make sure the image exists: docker images | grep $(echo $IMAGE_NAME | cut -d: -f1)"
+    echo "Make sure the image exists: docker images | grep $(echo "$IMAGE_NAME" | cut -d: -f1)"
     exit 1
 fi
 
@@ -41,12 +41,12 @@ if docker cp "$CONTAINER_NAME:$CONTAINER_PATH" "$LOCAL_DEST" 2>/dev/null; then
     echo
     echo "📁 Contents of $LOCAL_DEST:"
     if [ -d "$LOCAL_DEST" ]; then
-        ls -la "$LOCAL_DEST" | head -15
+        find "$LOCAL_DEST" -maxdepth 1 -ls | head -15
         echo
         echo "Total size:"
         du -sh "$LOCAL_DEST"
     elif [ -f "$LOCAL_DEST" ]; then
-        echo "File size: $(ls -lh "$LOCAL_DEST" | awk '{print $5}')"
+        echo "File size: $(find "$LOCAL_DEST" -maxdepth 0 -printf '%s\n' | numfmt --to=iec 2>/dev/null || stat --printf='%s' "$LOCAL_DEST")"
         echo "File type: $(file "$LOCAL_DEST")"
     fi
 else

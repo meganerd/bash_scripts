@@ -63,7 +63,7 @@ echo
 echo "=== Practical Examples ==="
 echo
 
-read -p "Do you want to see a practical demonstration? (y/n): " demo
+read -rp "Do you want to see a practical demonstration? (y/n): " demo
 
 if [ "$demo" = "y" ]; then
     echo
@@ -74,7 +74,7 @@ if [ "$demo" = "y" ]; then
     docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" | head -10
     echo
     
-    read -p "Enter image name to examine (e.g., ubuntu:latest): " image_name
+    read -rp "Enter image name to examine (e.g., ubuntu:latest): " image_name
     
     if [ -n "$image_name" ]; then
         echo
@@ -88,9 +88,7 @@ if [ "$demo" = "y" ]; then
         container_name="temp_examine_$(date +%s)"
         
         echo "Creating stopped container: $container_name"
-        docker create --name "$container_name" "$image_name" > /dev/null
-        
-        if [ $? -eq 0 ]; then
+        if docker create --name "$container_name" "$image_name" > /dev/null; then
             echo "✓ Container created successfully"
             echo
             
@@ -103,7 +101,7 @@ if [ "$demo" = "y" ]; then
             if [ -d "./container_etc" ]; then
                 echo "✓ /etc directory copied to ./container_etc"
                 echo "Contents of /etc:"
-                ls -la ./container_etc | head -10
+                find ./container_etc -maxdepth 1 -ls | head -10
                 rm -rf ./container_etc
             fi
             
@@ -127,11 +125,11 @@ if [ "$demo" = "y" ]; then
         docker save "$image_name" -o "$temp_dir/image.tar"
         
         echo "Extracting image tar..."
-        cd "$temp_dir"
+        cd "$temp_dir" || exit
         tar -xf image.tar 2>/dev/null
         
         echo "Image structure:"
-        ls -la | grep -E "(json|tar)"
+        find . -maxdepth 1 \( -name "*.json" -o -name "*.tar" \) -ls
         echo
         
         echo "Layer directories:"
@@ -143,7 +141,7 @@ if [ "$demo" = "y" ]; then
             layer_dir=$(dirname "$first_layer")
             echo
             echo "Extracting first layer from: $layer_dir"
-            cd "$layer_dir"
+            cd "$layer_dir" || exit
             tar -tf layer.tar | head -20
         fi
         
