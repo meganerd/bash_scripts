@@ -9,15 +9,15 @@ REMOTE_HOST=""
 SSH_KEY=""
 
 # remote_check functions
-CheckNet_TCP ()
-{
-   touch ~/null.bin
-   scp -c -i $SSH_KEY ~/null.bin $REMOTE_HOST:
-}
+#CheckNet_TCP ()
+#{
+#   touch ~/null.bin
+#   scp -c -i "$SSH_KEY" ~/null.bin "$REMOTE_HOST":
+#}
 
 CheckNet_ICMP ()
 {
-  ping6 -c 1 $REMOTE_HOST  >& /dev/null ; 
+  ping6 -c 1 "$REMOTE_HOST"  >& /dev/null ;
 }
  # Check if available via ping or SCP, then transfer archive file if remote location is online.
 if CheckNet_ICMP ; then

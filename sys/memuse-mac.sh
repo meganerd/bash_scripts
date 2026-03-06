@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Set default number of processes
 NUM_PROCESSES=15
@@ -45,7 +45,7 @@ fi
 # Run osquery with CSV output and process with awk
 osqueryi --csv "$QUERY" | \
 awk -F'|' -v num_processes="$NUM_PROCESSES" -v show_all="$SHOW_ALL" '
-BEGIN { 
+BEGIN {
     if (show_all == "true") {
         print "\nAll Processes by Memory Usage\n"
     } else {
@@ -62,17 +62,17 @@ NR>1 {
     gsub(/"/, "", $2)
     gsub(/"/, "", $3)
     gsub(/"/, "", $4)
-    
+
     # Add to totals
     total_memory += $4
     process_count++
-    
+
     # Truncate long command lines
     cmdline = $3
     if (length(cmdline) > 45) {
         cmdline = substr(cmdline, 1, 42) "..."
     }
-    
+
     # Format the output
     printf("%-7s %-23s %-45s %9s MB\n", $1, $2, cmdline, $4)
 }

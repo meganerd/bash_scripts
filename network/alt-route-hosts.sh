@@ -10,18 +10,18 @@ alt_gateway="CHANGEME"
 alt_dev="CHANGEME"
 
 # Nothing should need to be modified below this line.
-existing_table=`ip rule ls |grep $alt_table | cut -f 2 -d ":" | cut -f 2 -d " "`
+existing_table=$(ip rule ls |grep "$alt_table" | cut -f 2 -d ":" | cut -f 2 -d " ")
 
 echo ""
 echo "Deleting current rules for IPs:"
-for each in $existing_table ; do echo $each ; done
-for each in $existing_table ; do ip rule del from $each table $alt_table ; done
+for each in $existing_table ; do echo "$each" ; done
+for each in $existing_table ; do ip rule del from "$each" table "$alt_table" ; done
 
 echo ""
 echo "Adding the following rules to the $alt_table table."
-for each in `cat $host_list` ; do echo ip rule add from $each table $alt_table ; done
+while read -r each; do echo ip rule add from "$each" table "$alt_table" ; done < "$host_list"
 
-for each in `cat $host_list` ; do ip rule add from $each table $alt_table ; done
+while read -r each; do ip rule add from "$each" table "$alt_table" ; done < "$host_list"
 echo ""
 echo "The current rule list is:"
 ip rule ls

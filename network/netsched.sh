@@ -27,7 +27,7 @@ InterfaceDev=
 TimeUnit="ms"
 
 # Process arguments
-while getopts ":i:d:f:l:v:h" opt ; do
+while getopts ":i:d:f:l:I:T:v:h" opt ; do
 	case "$opt" in
 
 	  i) iflag=1
@@ -41,16 +41,16 @@ while getopts ":i:d:f:l:v:h" opt ; do
 	  I) Iflag=1
 	      IntervalCheck=$OPTARG ;;
 	  T) Tflag=1
-	      TargetDelay=$OPTARG ;;	
+	      TargetDelay=$OPTARG ;;
 	  v) vflag=1
 	      InterfaceDev=$OPTARG ;;
-	    
+
 	  h) ShowUsage;;
-	  
+
 	  ?) ShowUsage;;
-	  
+
 	esac
- 
+
 done
 
 # Define the rest of the funtions.
@@ -59,21 +59,21 @@ ClearExistingQueue()
 {
 echo "removing shaping rules:"
 # clean existing down- and uplink qdiscs, hide errors
-sudo /sbin/tc qdisc del dev $InterfaceDev root 2> /dev/null > /dev/null 
-sudo /sbin/tc qdisc del dev $InterfaceDev ingress 2> /dev/null > /dev/null
+sudo /sbin/tc qdisc del dev "$InterfaceDev" root 2> /dev/null > /dev/null
+sudo /sbin/tc qdisc del dev "$InterfaceDev" ingress 2> /dev/null > /dev/null
 echo "complete"
 }
 
 SetQueue()
 {
 echo "Setting queue on interface $InterfaceDev, with a limit of $LimitNum packets, $FlowNum flows, a target of $TargetDelay in $TimeUnit, and an interval of $IntervalCheck in $TimeUnit."
-sudo /sbin/tc qdisc add dev $InterfaceDev root fq_codel target $TargetDelay$TimeUnit interval $IntervalCheck$TimeUnit limit $LimitNum flows $FlowNum noecn quantum 1514
+sudo /sbin/tc qdisc add dev "$InterfaceDev" root fq_codel target "$TargetDelay"$TimeUnit interval "$IntervalCheck"$TimeUnit limit "$LimitNum" flows "$FlowNum" noecn quantum 1514
 }
 
 ShowQueue()
 {
-sudo  /sbin/tc -s qdisc ls dev $InterfaceDev
-sudo  /sbin/tc -s class ls dev $InterfaceDev
+sudo  /sbin/tc -s qdisc ls dev "$InterfaceDev"
+sudo  /sbin/tc -s class ls dev "$InterfaceDev"
 }
 
 

@@ -86,10 +86,10 @@ echo "Trace mode: $TRACE_MODE"
 echo "Verbose: $VERBOSE"
 echo "========================================"
 
-# Check system prerequisites before executing 
+# Check system prerequisites before executing
 if [ "$TEST_MODE" = false ]; then
     echo "Checking system prerequisites..."
-    
+
     # Check if az CLI is installed
     if ! command -v az &>/dev/null; then
         echo "WARNING: Azure CLI (az) is not installed or not in PATH"
@@ -99,7 +99,7 @@ if [ "$TEST_MODE" = false ]; then
         # Check Azure CLI version
         echo "Azure CLI version:"
         az --version | head -n 1
-        
+
         # Check if user is logged in
         echo "Checking Azure login status..."
         if ! az account show &>/dev/null; then
@@ -110,7 +110,7 @@ if [ "$TEST_MODE" = false ]; then
             echo "Current subscription:"
             az account show --query name -o tsv
         fi
-        
+
         # Check if the registry exists
         echo "Checking if ACR registry '$REGISTRY_NAME' exists..."
         if ! az acr show --name "$REGISTRY_NAME" &>/dev/null; then
@@ -125,32 +125,32 @@ fi
 # Create stub functions for test mode
 if [ "$TEST_MODE" = true ]; then
     echo "Setting up test environment..."
-    
+
     # Create a temporary directory for the test
     TEST_DIR=$(mktemp -d)
     echo "Test directory: $TEST_DIR"
-    
+
     # Create mock repositories with a variety of formats to test handling
     MOCK_REPOS=(
-        "repo1" 
-        "repo2" 
-        "repo3/nested" 
-        "frontend" 
+        "repo1"
+        "repo2"
+        "repo3/nested"
+        "frontend"
         "backend"
         "repo with spaces"
         "very/deeply/nested/repository"
         "special-chars_$%^&"
     )
-    
+
     # Write repos to file
     printf "%s\n" "${MOCK_REPOS[@]}" > "$TEST_DIR/repos.txt"
-    
+
     # Create mock tags for each repository
     for repo in "${MOCK_REPOS[@]}"; do
         # Make a safe filename
         safe_repo="${repo//\//_}"
         safe_repo="${safe_repo// /_}"
-        
+
         # Create different numbers of tags for different repos
         tags=()
         case "$repo" in
@@ -171,18 +171,18 @@ if [ "$TEST_MODE" = true ]; then
                 done
                 ;;
         esac
-        
+
         # Create directory and tag file
         mkdir -p "$TEST_DIR/$safe_repo"
         printf "%s\n" "${tags[@]}" > "$TEST_DIR/$safe_repo/tags.txt"
-        
+
         echo "Created mock repository '$repo' with ${#tags[@]} tags"
     done
-    
+
     # Create az function wrapper with more detailed logging
     function az() {
         echo "MOCK AZ CLI: az $*" >&2
-        
+
         if [ "$1" = "acr" ]; then
             if [ "$2" = "login" ]; then
                 echo "Mock: Logged in to ACR registry $4"
@@ -206,20 +206,20 @@ if [ "$TEST_MODE" = true ]; then
                 elif [ "$3" = "show" ]; then
                     # Mock the repository show command for image manifest details
                     echo "Mock: Showing repository details for $5" >&2
-                    
+
                     # Extract repo and tag from the --image parameter
                     image="$5"
                     if [[ "$4" == "--image" && -n "$image" ]]; then
                         IFS=':' read -r repo tag <<< "$image"
-                        
+
                         # Generate a deterministic but seemingly random hash based on repo and tag
                         hash=$(echo "$repo:$tag" | md5sum | cut -c1-64)
-                        
+
                         # Generate a timestamp from 1-365 days ago
                         # Using hash to ensure consistent dates for the same repo:tag
                         day_offset=$(( $(echo "$hash" | od -An -N1 -i) % 365 ))
                         timestamp=$(date -d "$day_offset days ago" -u +"%Y-%m-%dT%H:%M:%SZ")
-                        
+
                         # Return mock manifest info as JSON
                         cat << EOJSON
 {
@@ -246,27 +246,27 @@ EOJSON
         elif [ "$1" = "account" ]; then
             if [ "$2" = "show" ]; then
                 echo "Mock: Showing account info" >&2
-                echo '{"name": "Mock Subscription", "id": "00000000-0000-0000-0000-000000000000"}' 
+                echo '{"name": "Mock Subscription", "id": "00000000-0000-0000-0000-000000000000"}'
                 return 0
             fi
         elif [ "$1" = "--version" ]; then
             echo "azure-cli (mock) 2.50.0"
             return 0
         fi
-        
+
         echo "Mock: Unsupported az command: az $*" >&2
         return 1
     }
-    
+
     # Export the function to be available to the script
     export -f az
-    
+
     echo "Mock Azure CLI environment ready. Will simulate ACR operations."
 fi
 
 # Create temp directory for logs if needed
 TEMP_LOG_DIR=$(mktemp -d)
-trap "rm -rf $TEMP_LOG_DIR" EXIT
+trap 'rm -rf "$TEMP_LOG_DIR"' EXIT
 
 # Set up environment variables for the script
 export DEBUG_ACR_SCRIPT=true
@@ -276,7 +276,7 @@ if [ "$VERBOSE" = true ]; then
     # Create a wrapper that will capture and display all output
     VERBOSE_LOG="$TEMP_LOG_DIR/verbose_output.log"
     echo "Verbose mode enabled. Output will be captured to $VERBOSE_LOG"
-    
+
     # Run with the appropriate trace setting
     if [ "$TRACE_MODE" = true ]; then
         DEBUG=true bash "$SCRIPT_PATH" "$REGISTRY_NAME" "$DESTINATION" "$MAX_JOBS" 2>&1 | tee "$VERBOSE_LOG"
@@ -310,43 +310,43 @@ if [ -f "$DESTINATION" ]; then
     echo "File exists: Yes"
     echo "File size: $SIZE"
     echo "Line count: $LINES"
-    
+
     if [ "$LINES" -gt 0 ]; then
         echo -e "\nSample content (first 5 lines):"
         head -n 5 "$DESTINATION"
-        
+
         echo -e "\nSample content (last 5 lines):"
         tail -n 5 "$DESTINATION"
-        
+
         # Skip header line when counting
         ACTUAL_LINES=$((LINES - 1))
         echo -e "\nTotal entries (excluding header): $ACTUAL_LINES"
-        
+
         echo -e "\nRepository count:"
         tail -n +2 "$DESTINATION" | cut -d, -f1 | sort | uniq | wc -l
-        
+
         echo -e "\nTop 5 repositories by tag count:"
         tail -n +2 "$DESTINATION" | cut -d, -f1 | sort | uniq -c | sort -rn | head -n 5
-        
+
         echo -e "\nUnique image count (repo:tag combinations):"
         tail -n +2 "$DESTINATION" | awk -F, '{print $1":"$2}' | sort | uniq | wc -l
-        
+
         echo -e "\nDate range of images:"
-        echo "Oldest:" $(tail -n +2 "$DESTINATION" | cut -d, -f3 | grep -v "^$" | sort | head -n 1)
-        echo "Newest:" $(tail -n +2 "$DESTINATION" | cut -d, -f3 | grep -v "^$" | sort | tail -n 1)
-        
+        echo "Oldest:" "$(tail -n +2 "$DESTINATION" | cut -d, -f3 | grep -v "^$" | sort | head -n 1)"
+        echo "Newest:" "$(tail -n +2 "$DESTINATION" | cut -d, -f3 | grep -v "^$" | sort | tail -n 1)"
+
         echo -e "\nCount of entries with missing data:"
-        echo "Missing dates:" $(grep -c "^[^,]*,[^,]*,," "$DESTINATION")
-        echo "Missing hashes:" $(grep -c "^[^,]*,[^,]*,[^,]*,$" "$DESTINATION")
+        echo "Missing dates:" "$(grep -c "^[^,]*,[^,]*,," "$DESTINATION")"
+        echo "Missing hashes:" "$(grep -c "^[^,]*,[^,]*,[^,]*,$" "$DESTINATION")"
     else
         echo "WARNING: Destination file is empty!"
-        
+
         # Additional debugging for empty file case
         echo -e "\nChecking for potential issues:"
         echo "1. Was the repository list retrieved successfully?"
         echo "2. Did tag retrieval succeed for each repository?"
         echo "3. Check script verbose output for error messages"
-        
+
         if [ -d "$TEMP_LOG_DIR" ] && [ "$VERBOSE" = true ] && [ -f "$VERBOSE_LOG" ]; then
             echo -e "\nError lines from verbose log:"
             grep -i "error\|warning\|failed" "$VERBOSE_LOG" | tail -n 10
