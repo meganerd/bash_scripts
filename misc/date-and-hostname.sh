@@ -2,7 +2,7 @@
 # Based on ideas found at http://www.cyberciti.biz/faq/linux-unix-sleep-bash-scripting/
 #
 
-while [ : ]
+while true
 do
     clear
     tput cup 5 5

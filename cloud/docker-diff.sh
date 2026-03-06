@@ -61,18 +61,18 @@ docker export "${CONTAINER_B_ID}" > "${tmpdir}"/B.tar
 mkdir -p "${tmpdir}/${IMAGE_A}" && tar -xf "${tmpdir}"/A.tar -C "${tmpdir}/${IMAGE_A}" --exclude='./etc/mtab' --exclude='./proc' --exclude='./dev'
 mkdir -p "${tmpdir}/${IMAGE_B}" && tar -xf "${tmpdir}"/B.tar -C "${tmpdir}/${IMAGE_B}" --exclude='./etc/mtab' --exclude='./proc' --exclude='./dev'
 (
-    cd ${tmpdir}
-    diff --unified -arq ${IMAGE_A} ${IMAGE_B} 2>&1 | grep -v "No such file or directory" | grep -v "is a character special file" | grep -v "is a block special file" | tee ${tmpdir}/diff
+    cd "${tmpdir}"
+    diff --unified -arq "${IMAGE_A}" "${IMAGE_B}" 2>&1 | grep -v "No such file or directory" | grep -v "is a character special file" | grep -v "is a block special file" | tee "${tmpdir}/diff"
 )
-cat ${tmpdir}/diff | wc -l > ${tmpdir}/difflinecount
+wc -l < "${tmpdir}/diff" > "${tmpdir}/difflinecount"
 set +e
 
 code=1
-if [ "$(echo `cat ${tmpdir}/difflinecount`)" = "0" ]; then
+if [ "$(cat "${tmpdir}/difflinecount")" -eq 0 ]; then
   code=0
 fi
 
-rm -rf ${tmpdir}
+rm -rf "${tmpdir}"
 docker rm -fv "${CONTAINER_A_ID}" "${CONTAINER_B_ID}" > /dev/null
 
 exit $code

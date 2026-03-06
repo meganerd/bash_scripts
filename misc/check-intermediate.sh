@@ -1,10 +1,11 @@
 #!/bin/bash
-which openssl &>/dev/null
-
-[ $? -ne 0 ] && echo "Openssl is not available, please install it" && exit 1
+if ! which openssl &>/dev/null; then
+    echo "Openssl is not available, please install it"
+    exit 1
+fi
 
 ShowUsage() {
-	printf "This script requires a hostname along with a port (though TCP port 443 is assumed if not provided).  
+	printf "This script requires a hostname along with a port (though TCP port 443 is assumed if not provided).
     It will then print the details of the TLS/SSL intermediate certificate.\n
 -n	-- Hostname to connect to.\n
 -p	-- Port of the service whose TLS certificate we wish to inpsect.\n
@@ -17,7 +18,7 @@ For example: check-intermediate.sh -n google.com -p 443\n
 PrintCert() {
     	echo ""
 	printf "Certificate details:\n"
-	echo | openssl s_client -showcerts -servername $server_name -connect $server_name:$server_port 2>/dev/null | openssl x509 -inform pem -noout -text
+	echo | openssl s_client -showcerts -servername "$server_name" -connect "$server_name":"$server_port" 2>/dev/null | openssl x509 -inform pem -noout -text
 }
 
 while getopts "n:p:h" opt; do
@@ -33,6 +34,7 @@ while getopts "n:p:h" opt; do
 		;;
 	h) ShowUsage ;;
 	:) ShowUsage ;;
+	*) ShowUsage ;;
 	esac
 
 done
@@ -50,4 +52,3 @@ else
 	ShowUsage
 	exit 1
 fi
-

@@ -3,9 +3,10 @@
 #smem -t -k -c pss -P $1 | tail -n 1
 
 # Check for the existance of smem
-which smem &>/dev/null
-
-[ $? -ne 0 ] && echo "smem utility is not available, please install it" && exit 1
+if ! which smem &>/dev/null; then
+    echo "smem utility is not available, please install it"
+    exit 1
+fi
 
 ShowUsage() {
 	printf "This script requires a process name.  For best results use the full path of the application (eg. /opt/google/chrome/chrome). \n

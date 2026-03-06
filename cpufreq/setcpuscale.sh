@@ -3,9 +3,10 @@
 # dialog is a utility installed by default on all major Linux distributions.
 # But it is good to check availability of dialog utility on your Linux box.
 
-which dialog &> /dev/null
-
-[ $? -ne 0 ]  && echo "Dialog utility is not available, please install it" && exit 1
+if ! which dialog &> /dev/null; then
+    echo "Dialog utility is not available, please install it"
+    exit 1
+fi
 
 # Check that a valid governor is set
 
@@ -21,7 +22,7 @@ which dialog &> /dev/null
 #fi
 
 # Creating an array with each of the CPUs numeric ID
-declare -a  CPUs=( `cat /proc/cpuinfo |grep processor |cut -f 2 -d \:` )
+mapfile -t CPUs < <(grep processor /proc/cpuinfo | cut -f 2 -d :)
 
 # Setting up the dialogue interface:
  dialog --clear --backtitle "Console Based CPU Governor Selection" --title "MAIN MENU" \
@@ -37,9 +38,9 @@ declare -a  CPUs=( `cat /proc/cpuinfo |grep processor |cut -f 2 -d \:` )
 elements="${#CPUs[*]}"
 
 SetSpeed ()
-{  
-  for (( i = 0  ; i < $elements ; i++ ))
-  do sudo cpufreq-set -c ${CPUs[$i]} -g $GOVERNOR 
+{
+  for (( i = 0  ; i < elements ; i++ ))
+  do sudo cpufreq-set -c "${CPUs[$i]}" -g "$GOVERNOR"
 done
 }
 
@@ -48,7 +49,7 @@ done
 #echo "Done"
 
 retopt=$?
-    choice=`cat menuchoices.$$`
+    choice=$(cat menuchoices.$$)
 
     case $retopt in
 

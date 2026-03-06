@@ -121,7 +121,7 @@ check_hostname_dns() {
             fi
         else
             # Last resort: use /etc/hosts lookup via grep
-            if grep -q "^[^#]*[[:space:]]$hostname[[:space:]]*$\|^[^#]*[[:space:]]$hostname$" /etc/hosts 2>/dev/null; then
+            if grep -q "^[^#]*[[:space:]]${hostname}[[:space:]]*$\|^[^#]*[[:space:]]${hostname}$" /etc/hosts 2>/dev/null; then
                 return 0
             fi
         fi
@@ -209,19 +209,21 @@ wait_for()
         fi
         sleep 1
     done
-    return $WAITFORIT_result
+    return "$WAITFORIT_result"
 }
 
 wait_for_wrapper()
 {
     # In order to support SIGINT during timeout: http://unix.stackexchange.com/a/57692
     if [[ $WAITFORIT_QUIET -eq 1 ]]; then
-        timeout $WAITFORIT_BUSYTIMEFLAG $WAITFORIT_TIMEOUT $0 --quiet --child --host="$WAITFORIT_HOST" --port="$WAITFORIT_PORT" --timeout="$WAITFORIT_TIMEOUT" &
+        # shellcheck disable=SC2086
+        timeout $WAITFORIT_BUSYTIMEFLAG "$WAITFORIT_TIMEOUT" "$0" --quiet --child --host="$WAITFORIT_HOST" --port="$WAITFORIT_PORT" --timeout="$WAITFORIT_TIMEOUT" &
     else
-        timeout $WAITFORIT_BUSYTIMEFLAG $WAITFORIT_TIMEOUT $0 --child --host="$WAITFORIT_HOST" --port="$WAITFORIT_PORT" --timeout="$WAITFORIT_TIMEOUT" &
+        # shellcheck disable=SC2086
+        timeout $WAITFORIT_BUSYTIMEFLAG "$WAITFORIT_TIMEOUT" "$0" --child --host="$WAITFORIT_HOST" --port="$WAITFORIT_PORT" --timeout="$WAITFORIT_TIMEOUT" &
     fi
     WAITFORIT_PID=$!
-    trap "kill -INT -$WAITFORIT_PID" INT
+    trap 'kill -INT -$WAITFORIT_PID' INT
     wait $WAITFORIT_PID
     WAITFORIT_RESULT=$?
     if [[ $WAITFORIT_RESULT -ne 0 ]]; then
@@ -267,7 +269,7 @@ do
 
         else
             # Handle IPv4 and hostnames: host:port
-            WAITFORIT_hostport=(${1//:/ })
+            IFS=':' read -r -a WAITFORIT_hostport <<< "$1"
             WAITFORIT_HOST=${WAITFORIT_hostport[0]}
             WAITFORIT_PORT=${WAITFORIT_hostport[1]}
 
@@ -325,7 +327,7 @@ WAITFORIT_QUIET=${WAITFORIT_QUIET:-0}
 
 # Check to see if timeout is from busybox?
 WAITFORIT_TIMEOUT_PATH=$(type -p timeout)
-WAITFORIT_TIMEOUT_PATH=$(realpath $WAITFORIT_TIMEOUT_PATH 2>/dev/null || readlink -f $WAITFORIT_TIMEOUT_PATH)
+WAITFORIT_TIMEOUT_PATH=$(realpath "$WAITFORIT_TIMEOUT_PATH" 2>/dev/null || readlink -f "$WAITFORIT_TIMEOUT_PATH")
 
 WAITFORIT_BUSYTIMEFLAG=""
 if [[ $WAITFORIT_TIMEOUT_PATH =~ "busybox" ]]; then
@@ -353,7 +355,7 @@ else
     fi
 fi
 
-if [[ $WAITFORIT_CLI != "" ]]; then
+if [[ ${#WAITFORIT_CLI[@]} -gt 0 ]]; then
     if [[ $WAITFORIT_RESULT -ne 0 && $WAITFORIT_STRICT -eq 1 ]]; then
         echoerr "$WAITFORIT_cmdname: strict mode, refusing to execute subprocess"
         exit $WAITFORIT_RESULT

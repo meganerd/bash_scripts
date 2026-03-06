@@ -18,6 +18,9 @@
 #   contrast           Set contrast (parameters: 0-64)
 #   picture-mode       Set picture mode (parameters: custom, vivid, reader, cinema, etc.)
 #   reset              Reset settings (parameters: picture, factory)
+#   pbp-pip            Set PBP/PIP mode (parameters: off, pip, pbp)
+#   pip-size           Set PIP window size (parameters: small, medium, large)
+#   main-sub-change    Swap main and sub inputs (no parameters required)
 #   list-commands      Show all available commands
 #
 # Examples:
@@ -75,7 +78,7 @@ send_command() {
     # Format: [Command1][Command2][ ][Set ID][ ][Data][Cr]
     # The format requires spaces between components and a carriage return at the end
     # Make sure MONITOR_ID is padded to 2 digits
-    local padded_id=$(printf "%02d" "$MONITOR_ID")
+    local padded_id; padded_id=$(printf "%02d" "$MONITOR_ID")
     local command="${cmd1}${cmd2} ${padded_id} ${data}\r"
     
     # For debugging
@@ -168,6 +171,16 @@ DATA_VALUES=(
     
     ["reset.picture"]="00"
     ["reset.factory"]="01"
+
+    ["pbp-pip.off"]="00"
+    ["pbp-pip.pip"]="01"
+    ["pbp-pip.pbp"]="02"
+
+    ["pip-size.small"]="00"
+    ["pip-size.medium"]="01"
+    ["pip-size.large"]="02"
+
+    ["main-sub-change.swap"]="01"
 )
 
 # Function to convert decimal to hex
@@ -186,6 +199,9 @@ list_commands() {
     echo "contrast: 0-64"
     echo "picture-mode: custom, vivid, reader, cinema, fps, rts"
     echo "reset: picture, factory"
+    echo "pbp-pip: off, pip, pbp"
+    echo "pip-size: small, medium, large"
+    echo "main-sub-change: (no parameters - swaps main/sub inputs)"
     echo
     echo "For more commands, refer to the monitor's user manual."
 }
@@ -303,7 +319,40 @@ case "$COMMAND" in
     "list-commands")
         list_commands
         ;;
-        
+
+    "pbp-pip")
+        case "$1" in
+            "off") data="00" ;;
+            "pip") data="01" ;;
+            "pbp") data="02" ;;
+            *)
+                echo "Invalid PBP/PIP mode. Use off, pip, or pbp."
+                exit 1
+                ;;
+        esac
+        send_command "${COMMANDS["pbp-pip"]}" "c" "$data"
+        echo "Setting PBP/PIP mode to $1"
+        ;;
+
+    "pip-size")
+        case "$1" in
+            "small") data="00" ;;
+            "medium") data="01" ;;
+            "large") data="02" ;;
+            *)
+                echo "Invalid PIP size. Use small, medium, or large."
+                exit 1
+                ;;
+        esac
+        send_command "${COMMANDS["pip-size"]}" "d" "$data"
+        echo "Setting PIP size to $1"
+        ;;
+
+    "main-sub-change")
+        send_command "${COMMANDS["main-sub-change"]}" "e" "01"
+        echo "Swapping main and sub inputs"
+        ;;
+
     *)
         echo "Unknown command: $COMMAND"
         echo "Use --help for usage information."

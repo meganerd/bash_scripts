@@ -59,7 +59,7 @@ check_netrc_machine() {
     fi
 
     # Check file permissions (netrc should be readable only by owner)
-    local perms=$(stat -c %a "$netrc_file" 2>/dev/null || stat -f %A "$netrc_file" 2>/dev/null)
+    local perms; perms=$(stat -c %a "$netrc_file" 2>/dev/null || stat -f %A "$netrc_file" 2>/dev/null)
     if [ -n "$perms" ] && [ "$perms" != "600" ] && [ "$perms" != "400" ]; then
         echo "Warning: Netrc file has insecure permissions ($perms). Should be 600 or 400."
         echo "  Run: chmod 600 $netrc_file"
@@ -208,4 +208,4 @@ for BUILD_NUM in $BUILDS; do
     fi
 done
 
-echo "Done. Successfully downloaded $SUCCESS_COUNT out of $(echo $BUILDS | wc -w) logs."
+echo "Done. Successfully downloaded $SUCCESS_COUNT out of $(echo "$BUILDS" | wc -w) logs."

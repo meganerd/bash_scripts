@@ -41,41 +41,43 @@ done
 
 ## ======== You should not need to edit anything below this line ========= ##
 
-TIMESTAMP=$(date +%F_%H.%M)			# not currently used.  
+TIMESTAMP=$(date +%F_%H.%M)			# not currently used.
 
 # number of elements in the array.  Should not need to be changed.
 # used to control the number of times the backup loop runs, should be once on every
 # path in the array.
+# shellcheck disable=SC2154
 elements="${#sourcedir[*]}"
 
 ## define functions ##
 
 CheckNet ()
 {
-  ping -c 1 $PINGHOST  >& /dev/null ; # Checking to see if we have net connectivity to the backup server
+  ping -c 1 "$PINGHOST"  >& /dev/null ; # Checking to see if we have net connectivity to the backup server
 }
 
 RsyncRun ()
 {
-  for (( i = 0  ; i < $elements ; i++ ))
+  for (( i = 0  ; i < elements ; i++ ))
   do
-  rsync -t -ruz --progress --delete --inplace --rsh="ssh -p $PORT -i $SSH_KEY" ${sourcedir[$i]} $USERNAME@$HOST:$REMOTE_PATH 
+  rsync -t -ruz --progress --delete --inplace --rsh="ssh -p $PORT -i $SSH_KEY" "${sourcedir[$i]}" "$USERNAME"@"$HOST":"$REMOTE_PATH"
   done
 }
 
 RdiffRun ()
 {
-for (( i = 0  ; i < $elements ; i++ ))
+for (( i = 0  ; i < elements ; i++ ))
 do
- /usr/bin/rdiff-backup -v 4 --no-acl --no-eas --create-full-path --remote-schema "ssh -C -p $PORT -i $SSH_KEY %s rdiff-backup --server" ${sourcedir[$i]} $USERNAME@$HOST::$REMOTE_PATH/${sourcedir[$i]}
+ /usr/bin/rdiff-backup -v 4 --no-acl --no-eas --create-full-path --remote-schema "ssh -C -p $PORT -i $SSH_KEY %s rdiff-backup --server" "${sourcedir[$i]}" "$USERNAME"@"$HOST"::"$REMOTE_PATH"/"${sourcedir[$i]}"
 done
 }
 
 RdiffLocal ()
 {
-for (( i = 0  ; i < $elements ; i++ ))
+for (( i = 0  ; i < elements ; i++ ))
 do
- /usr/bin/rdiff-backup -v 4 --no-acl --no-eas --create-full-path  ${sourcedir[$i]} $LocalDir/${sourcedir[$i]}
+ # shellcheck disable=SC2154
+ /usr/bin/rdiff-backup -v 4 --no-acl --no-eas --create-full-path  "${sourcedir[$i]}" "$LocalDir"/"${sourcedir[$i]}"
 done
 }
 
@@ -85,9 +87,9 @@ DuplicityNetRun ()
  # This environment variable is passed from duplicity to GnuPG
  export PASSPHRASE=$GPG_PASSPHRASE ;
 
- for (( i = 0  ; i < $elements ; i++ ))
+ for (( i = 0  ; i < elements ; i++ ))
  do
-  duplicity --allow-source-mismatch --ssh-options "-oIdentityFile=$SSH_KEY" --encrypt-key $GPG_KEY ${sourcedir[$i]} scp://$USERNAME@$HOST:$PORT/$REMOTE_PATH
+  duplicity --allow-source-mismatch --ssh-options "-oIdentityFile=$SSH_KEY" --encrypt-key "$GPG_KEY" "${sourcedir[$i]}" scp://"$USERNAME"@"$HOST":"$PORT"/"$REMOTE_PATH"
 
  # clearing the PASSPHRASE environment variable since we don't want this hanging around
  done
@@ -100,9 +102,10 @@ DuplicityFileRun ()
  # This environment variable is passed from duplicity to GnuPG
  export PASSPHRASE=$GPG_PASSPHRASE ;
 
- for (( i = 0  ; i < $elements ; i++ ))
+ for (( i = 0  ; i < elements ; i++ ))
  do
- duplicity --allow-source-mismatch --encrypt-key $GPG_KEY ${sourcedir[$i]} file://$LocalDir
+ # shellcheck disable=SC2154
+ duplicity --allow-source-mismatch --encrypt-key "$GPG_KEY" "${sourcedir[$i]}" file://"$LocalDir"
 
  # clearing the PASSPHRASE environment variable since we don't want this hanging around
  done
@@ -111,14 +114,14 @@ DuplicityFileRun ()
 
 CheckSize ()
 {
-for ((  i = 0  ; i < $elements ; i++ ))
+for ((  i = 0  ; i < elements ; i++ ))
  do
-  du -sh ${sourcedir[$i]}
+  du -sh "${sourcedir[$i]}"
 done
 }
 
 # Setting the time stamp in the log
- echo "### Starting remote backup at `date` ###"
+ echo "### Starting remote backup at $(date) ###"
 # Check if available via ping, backup if online
 if CheckNet ; then
  echo "### Internet connection is alive and kicking, begin backup. ###"
@@ -128,9 +131,10 @@ if CheckNet ; then
 CheckSize
 
 # Run the selected backup funtion
+# shellcheck disable=SC2154
 $BackupFunction
 
-echo " ### completed backup at `date` ###"
+echo " ### completed backup at $(date) ###"
  exit 0
 
 else
