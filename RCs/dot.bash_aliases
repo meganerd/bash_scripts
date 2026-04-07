@@ -41,7 +41,7 @@ if [ -d /usr/local/go/bin ]; then
 fi
 
 if [ -f $(which xclip) ]; then
-    alias pbcopy_linux='xclip -selection clipboard'
+    alias pbcopy_linux='tee >(xclip -selection clipboard)'
     alias pbpaste_linux='xclip -selection clipboard -o'
 else
     echo "xclip not installed, not setting pbcopy alias."
@@ -98,6 +98,34 @@ manopt() {
 local cmd=$1 opt=$2
 [[ $opt == -* ]] || { (( ${#opt} == 1 )) && opt="-$opt" || opt="--$opt"; }
 man "$cmd" | col -b | awk -v opt="$opt" -v RS= '$0 ~ "(^|,)[[:blank:]]+" opt "([[:punct:][:space:]]|$)"'
+}
+
+# Fast bulk transfer using tar + pv + netcat (bypasses CIFS/NFS overhead)
+# Usage:
+#   receiver$ tarrecv /destination/path/
+#   sender$   tarsend /source/path/ receiverhost
+#
+# Optional port as 3rd arg: tarsend /src/ host 5555
+#                           tarrecv /dst/ 5555
+tarrecv() {
+    local dst="${1:?Usage: tarrecv <dest_dir> [port]}"
+    local port="${2:-9999}"
+    mkdir -p "$dst"
+    echo "Listening on port $port, extracting to $dst ..."
+    nc -l "$port" | tar xpf - -C "$dst"
+    echo "Transfer complete."
+}
+
+tarsend() {
+    local src="${1:?Usage: tarsend <src_dir> <host> [port]}"
+    local host="${2:?Usage: tarsend <src_dir> <host> [port]}"
+    local port="${3:-9999}"
+    local size
+    echo "Calculating size of $src ..."
+    size=$(du -sb "$src" 2>/dev/null | awk '{print $1}')
+    echo "Sending $src ($(numfmt --to=iec "$size")) to $host:$port ..."
+    tar cf - -C "$src" . | pv -s "$size" | nc "$host" "$port"
+    echo "Transfer complete."
 }
 
 # Put all local system specific aliases into a ~/.bash_aliases_local file
