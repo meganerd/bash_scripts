@@ -204,7 +204,13 @@
   "table": {
     "center_separator": "┼",
     "column_separator": "│",
-    "row_separator": "─"
+    "row_separator": "─",
+    "odd_row": {
+      "background_color": "#0d1117"
+    },
+    "even_row": {
+      "background_color": "#151b23"
+    }
   },
   "definition_list": {},
   "definition_term": {
