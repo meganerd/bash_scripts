@@ -153,3 +153,24 @@ waitforit_wrapper() {
  fi
     wait-for-it.sh -p 22 -t 180 -h "$1" -- ssh "$1" -l "$SSH_USER"
 }
+
+# html2pdf <input.html> -- print local HTML to PDF via headless chrome.
+# Output is written next to the input as <input.html>.pdf.
+html2pdf() {
+    local input="${1:?Usage: html2pdf <input.html>}"
+    [ -f "$input" ] || { echo "html2pdf: file not found: $input" >&2; return 1; }
+    local browser
+    if command -v google-chrome >/dev/null 2>&1; then
+        browser=google-chrome
+    elif command -v chromium >/dev/null 2>&1; then
+        browser=chromium  # snap chromium is AppArmor-confined to $HOME
+    else
+        echo "html2pdf: neither google-chrome nor chromium found" >&2; return 1
+    fi
+    "$browser" --headless=new --disable-gpu \
+        --no-pdf-header-footer \
+        --print-to-pdf="${input}.pdf" \
+        "$input" >/dev/null 2>&1 \
+        && echo "wrote ${input}.pdf" \
+        || { echo "html2pdf: $browser failed" >&2; return 1; }
+}
