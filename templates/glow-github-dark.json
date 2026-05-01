@@ -1,0 +1,218 @@
+{
+  "document": {
+    "block_prefix": "\n",
+    "block_suffix": "\n",
+    "color": "#f0f6fc",
+    "background_color": "#0d1117",
+    "margin": 2
+  },
+  "block_quote": {
+    "indent": 1,
+    "indent_token": "│ ",
+    "color": "#9198a1"
+  },
+  "paragraph": {},
+  "list": {
+    "level_indent": 2
+  },
+  "heading": {
+    "block_suffix": "\n",
+    "color": "#f0f6fc",
+    "bold": true
+  },
+  "h1": {
+    "prefix": "# ",
+    "suffix": "",
+    "color": "#f0f6fc",
+    "bold": true
+  },
+  "h2": {
+    "prefix": "## ",
+    "color": "#f0f6fc",
+    "bold": true
+  },
+  "h3": {
+    "prefix": "### ",
+    "color": "#f0f6fc",
+    "bold": true
+  },
+  "h4": {
+    "prefix": "#### ",
+    "color": "#f0f6fc",
+    "bold": true
+  },
+  "h5": {
+    "prefix": "##### ",
+    "color": "#f0f6fc",
+    "bold": true
+  },
+  "h6": {
+    "prefix": "###### ",
+    "color": "#9198a1",
+    "bold": true
+  },
+  "text": {},
+  "strikethrough": {
+    "crossed_out": true
+  },
+  "emph": {
+    "italic": true
+  },
+  "strong": {
+    "bold": true
+  },
+  "hr": {
+    "color": "#3d444d",
+    "format": "\n────────\n"
+  },
+  "item": {
+    "block_prefix": "• "
+  },
+  "enumeration": {
+    "block_prefix": ". "
+  },
+  "task": {
+    "ticked": "[✓] ",
+    "unticked": "[ ] "
+  },
+  "link": {
+    "color": "#4493f8",
+    "underline": true
+  },
+  "link_text": {
+    "color": "#4493f8",
+    "bold": false
+  },
+  "image": {
+    "color": "#4493f8",
+    "underline": true
+  },
+  "image_text": {
+    "color": "#9198a1",
+    "format": "Image: {{.text}} →"
+  },
+  "code": {
+    "prefix": " ",
+    "suffix": " ",
+    "color": "#f0f6fc",
+    "background_color": "#151b23"
+  },
+  "code_block": {
+    "color": "#f0f6fc",
+    "margin": 2,
+    "chroma": {
+      "text": {
+        "color": "#f0f6fc"
+      },
+      "error": {
+        "color": "#f0f6fc",
+        "background_color": "#f85149"
+      },
+      "comment": {
+        "color": "#9198a1",
+        "italic": true
+      },
+      "comment_preproc": {
+        "color": "#79c0ff"
+      },
+      "keyword": {
+        "color": "#ff7b72"
+      },
+      "keyword_reserved": {
+        "color": "#ff7b72"
+      },
+      "keyword_namespace": {
+        "color": "#ff7b72"
+      },
+      "keyword_type": {
+        "color": "#ff7b72"
+      },
+      "operator": {
+        "color": "#ff7b72"
+      },
+      "punctuation": {
+        "color": "#f0f6fc"
+      },
+      "name": {
+        "color": "#f0f6fc"
+      },
+      "name_builtin": {
+        "color": "#79c0ff"
+      },
+      "name_tag": {
+        "color": "#7ee787"
+      },
+      "name_attribute": {
+        "color": "#79c0ff"
+      },
+      "name_class": {
+        "color": "#f0f6fc",
+        "bold": true
+      },
+      "name_constant": {
+        "color": "#79c0ff"
+      },
+      "name_decorator": {
+        "color": "#d2a8ff"
+      },
+      "name_exception": {
+        "color": "#ff7b72"
+      },
+      "name_function": {
+        "color": "#d2a8ff"
+      },
+      "name_other": {
+        "color": "#f0f6fc"
+      },
+      "literal": {
+        "color": "#a5d6ff"
+      },
+      "literal_number": {
+        "color": "#79c0ff"
+      },
+      "literal_date": {
+        "color": "#79c0ff"
+      },
+      "literal_string": {
+        "color": "#a5d6ff"
+      },
+      "literal_string_escape": {
+        "color": "#79c0ff"
+      },
+      "generic_deleted": {
+        "color": "#ffdcd7",
+        "background_color": "#67060c"
+      },
+      "generic_emph": {
+        "italic": true
+      },
+      "generic_inserted": {
+        "color": "#aff5b4",
+        "background_color": "#033a16"
+      },
+      "generic_strong": {
+        "bold": true
+      },
+      "generic_subheading": {
+        "color": "#9198a1"
+      },
+      "background": {
+        "background_color": "#151b23"
+      }
+    }
+  },
+  "table": {
+    "center_separator": "┼",
+    "column_separator": "│",
+    "row_separator": "─"
+  },
+  "definition_list": {},
+  "definition_term": {
+    "bold": true
+  },
+  "definition_description": {
+    "block_prefix": "\n  "
+  },
+  "html_block": {},
+  "html_span": {}
+}
