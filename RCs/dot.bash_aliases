@@ -154,11 +154,18 @@ waitforit_wrapper() {
     wait-for-it.sh -p 22 -t 180 -h "$1" -- ssh "$1" -l "$SSH_USER"
 }
 
-# html2pdf <input.html> -- print local HTML to PDF via headless chrome.
+# html2pdf-chrome <input.html> [portrait|landscape] -- print local HTML to PDF via headless chrome.
 # Output is written next to the input as <input.html>.pdf.
-html2pdf() {
-    local input="${1:?Usage: html2pdf <input.html>}"
+# Orientation defaults to portrait. Landscape is achieved by injecting an
+# @page CSS rule into a temp copy of the source (chrome has no CLI flag for it).
+html2pdf-chrome() {
+    local input="${1:?Usage: html2pdf-chrome <input.html> [portrait|landscape]}"
+    local orientation="${2:-portrait}"
     [ -f "$input" ] || { echo "html2pdf: file not found: $input" >&2; return 1; }
+    case "$orientation" in
+        portrait|landscape) ;;
+        *) echo "html2pdf: orientation must be portrait or landscape, got: $orientation" >&2; return 1 ;;
+    esac
     local browser
     if command -v google-chrome >/dev/null 2>&1; then
         browser=google-chrome
@@ -167,10 +174,29 @@ html2pdf() {
     else
         echo "html2pdf: neither google-chrome nor chromium found" >&2; return 1
     fi
+    local source="$input" tmp=""
+    if [ "$orientation" = "landscape" ]; then
+        # Temp file lives next to the source so relative-path assets (CSS, images) still resolve.
+        tmp=$(mktemp --suffix=.html --tmpdir="$(dirname "$(readlink -f "$input")")") || {
+            echo "html2pdf: mktemp failed" >&2; return 1
+        }
+        if grep -qi '<head' "$input"; then
+            sed -E 's|(<head[^>]*>)|\1<style>@page{size:landscape}</style>|' "$input" > "$tmp"
+        else
+            { printf '<style>@page{size:landscape}</style>'; cat "$input"; } > "$tmp"
+        fi
+        source="$tmp"
+    fi
     "$browser" --headless=new --disable-gpu \
         --no-pdf-header-footer \
         --print-to-pdf="${input}.pdf" \
-        "$input" >/dev/null 2>&1 \
-        && echo "wrote ${input}.pdf" \
-        || { echo "html2pdf: $browser failed" >&2; return 1; }
+        "$source" >/dev/null 2>&1
+    local rc=$?
+    [ -n "$tmp" ] && rm -f "$tmp"
+    if [ $rc -eq 0 ]; then
+        echo "wrote ${input}.pdf"
+    else
+        echo "html2pdf: $browser failed" >&2
+        return 1
+    fi
 }
