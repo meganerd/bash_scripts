@@ -254,17 +254,28 @@ html2pdf-style() {
 }
 
 # md2pdf -- render a Markdown file to PDF via glow + aha + headless Chrome.
-# Usage: md2pdf input.md [font-size] [margin]
+# Usage: md2pdf [--dark] input.md [font-size] [margin]
+#   --dark:    Use dark background (passes -b to aha)
 #   font-size: CSS font-size value (default: 14px)
 #   margin:    CSS @page margin value (default: 2cm 1.5cm)
 # Output is written next to the input as <input.md>.pdf.
 md2pdf() {
-    local input="${1:?Usage: md2pdf <input.md> [font-size] [margin]}"
+    local dark=""
+    # Parse optional --dark flag
+    if [ "${1:-}" = "--dark" ] || [ "${1:-}" = "-d" ]; then
+        dark="-b"
+        shift
+    fi
+    local input="${1:?Usage: md2pdf [--dark] <input.md> [font-size] [margin]}"
     local font_size="${2:-14px}"
     local margin="${3:-2cm 1.5cm}"
     [ -f "$input" ] || { echo "md2pdf: file not found: $input" >&2; return 1; }
     local output="${input}.pdf"
 
+    # Check for unbuffer (preserves glow's ANSI colors through the pipe)
+    if ! command -v unbuffer >/dev/null 2>&1; then
+        echo "md2pdf: unbuffer not found (install 'expect' package)" >&2; return 1
+    fi
     # Check for glow
     if ! command -v glow >/dev/null 2>&1; then
         echo "md2pdf: glow not found" >&2; return 1
@@ -274,8 +285,14 @@ md2pdf() {
         echo "md2pdf: aha not found" >&2; return 1
     fi
 
-    glow "$input" \
-        | aha \
+    unbuffer glow "$input" \
+        | aha $dark \
         | html2pdf-style "body{font-size:${font_size}}" "margin:${margin}" \
         | html2pdf-pipe "$output"
+}
+
+# md2pdf-bgdark -- md2pdf with dark background (glow colors on black).
+# Usage: md2pdf-bgdark input.md [font-size] [margin]
+md2pdf-bgdark() {
+    md2pdf --dark "$@"
 }
