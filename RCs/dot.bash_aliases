@@ -283,7 +283,7 @@ md2pdf() {
     local dark=""
     local glow_style="auto"
     # Parse optional flags
-    while [[ "${1:-}" == --* ]]; do
+    while [[ "${1:-}" == -* ]]; do
         case "$1" in
             --dark|-d)
                 dark="-b"
