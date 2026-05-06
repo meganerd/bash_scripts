@@ -1,4 +1,22 @@
 echo "Loading ~/.bash_aliases"
+
+# ── Dependency check for md2pdf / html2pdf pipeline ──────────────────
+_md2pdf_deps=()
+command -v unbuffer  >/dev/null 2>&1 || _md2pdf_deps+=("unbuffer  (apt install expect)")
+command -v glow      >/dev/null 2>&1 || _md2pdf_deps+=("glow      (apt install glow  or  snap install glow)")
+command -v aha       >/dev/null 2>&1 || _md2pdf_deps+=("aha       (apt install aha)")
+command -v google-chrome >/dev/null 2>&1 || \
+command -v chromium      >/dev/null 2>&1 || _md2pdf_deps+=("google-chrome or chromium")
+if [ ${#_md2pdf_deps[@]} -gt 0 ]; then
+    echo "⚠ md2pdf/html2pdf missing dependencies:"
+    for _dep in "${_md2pdf_deps[@]}"; do
+        echo "   - $_dep"
+    done
+    unset _dep
+fi
+unset _md2pdf_deps
+# ─────────────────────────────────────────────────────────────────────
+
 # Create /tmp folder structure if it does not exist
 # Create /tmp folder structure if it does not exist
 if [ ! -d "/tmp/${USER}/Downloads" ]; then
@@ -254,19 +272,33 @@ html2pdf-style() {
 }
 
 # md2pdf -- render a Markdown file to PDF via glow + aha + headless Chrome.
-# Usage: md2pdf [--dark] input.md [font-size] [margin]
+# Usage: md2pdf [--dark] [--style STYLE] input.md [font-size] [margin]
 #   --dark:    Use dark background (passes -b to aha)
+#   --style:   Glow rendering style (default: auto)
+#              Available: dark, light, dracula, tokyo-night, pink, ascii, notty, auto
 #   font-size: CSS font-size value (default: 14px)
 #   margin:    CSS @page margin value (default: 2cm 1.5cm)
 # Output is written next to the input as <input.md>.pdf.
 md2pdf() {
     local dark=""
-    # Parse optional --dark flag
-    if [ "${1:-}" = "--dark" ] || [ "${1:-}" = "-d" ]; then
-        dark="-b"
-        shift
-    fi
-    local input="${1:?Usage: md2pdf [--dark] <input.md> [font-size] [margin]}"
+    local glow_style="auto"
+    # Parse optional flags
+    while [[ "${1:-}" == --* ]]; do
+        case "$1" in
+            --dark|-d)
+                dark="-b"
+                shift
+                ;;
+            --style|-s)
+                glow_style="${2:?md2pdf: --style requires a value (dark|light|dracula|tokyo-night|pink|ascii|notty|auto)}"
+                shift 2
+                ;;
+            *)
+                echo "md2pdf: unknown option: $1" >&2; return 1
+                ;;
+        esac
+    done
+    local input="${1:?Usage: md2pdf [--dark] [--style STYLE] <input.md> [font-size] [margin]}"
     local font_size="${2:-14px}"
     local margin="${3:-2cm 1.5cm}"
     [ -f "$input" ] || { echo "md2pdf: file not found: $input" >&2; return 1; }
@@ -285,7 +317,7 @@ md2pdf() {
         echo "md2pdf: aha not found" >&2; return 1
     fi
 
-    unbuffer glow "$input" \
+    unbuffer glow -s "$glow_style" "$input" \
         | aha $dark \
         | html2pdf-style "body{font-size:${font_size}}" "margin:${margin}" \
         | html2pdf-pipe "$output"
