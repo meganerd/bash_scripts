@@ -244,3 +244,38 @@ html2pdf-pipe() {
         return 1
     fi
 }
+
+# html2pdf-style -- inject CSS into aha HTML before pdf conversion.
+# Usage: ... | aha | html2pdf-style "body{font-size:16px}" "2cm 1.5cm" | html2pdf-pipe out.pdf
+html2pdf-style() {
+    local body_css="${1:-body{font-size:14px}}"
+    local page_css="${2:-margin:2cm 1.5cm}"
+    sed "s|</head>|<style>${body_css}@page{${page_css}}</style></head>|"
+}
+
+# md2pdf -- render a Markdown file to PDF via glow + aha + headless Chrome.
+# Usage: md2pdf input.md [font-size] [margin]
+#   font-size: CSS font-size value (default: 14px)
+#   margin:    CSS @page margin value (default: 2cm 1.5cm)
+# Output is written next to the input as <input.md>.pdf.
+md2pdf() {
+    local input="${1:?Usage: md2pdf <input.md> [font-size] [margin]}"
+    local font_size="${2:-14px}"
+    local margin="${3:-2cm 1.5cm}"
+    [ -f "$input" ] || { echo "md2pdf: file not found: $input" >&2; return 1; }
+    local output="${input}.pdf"
+
+    # Check for glow
+    if ! command -v glow >/dev/null 2>&1; then
+        echo "md2pdf: glow not found" >&2; return 1
+    fi
+    # Check for aha
+    if ! command -v aha >/dev/null 2>&1; then
+        echo "md2pdf: aha not found" >&2; return 1
+    fi
+
+    glow "$input" \
+        | aha \
+        | html2pdf-style "body{font-size:${font_size}}" "margin:${margin}" \
+        | html2pdf-pipe "$output"
+}
