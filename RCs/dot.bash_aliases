@@ -200,3 +200,47 @@ html2pdf-chrome() {
         return 1
     fi
 }
+
+# html2pdf-pipe -- print piped HTML to PDF via headless chrome.
+# Usage: echo "<h1>Hello</h1>" | html2pdf-pipe output.pdf [portrait|landscape]
+# Reads HTML from stdin, writes PDF to the specified output file.
+# Orientation defaults to portrait.
+html2pdf-pipe() {
+    local output="${1:?Usage: html2pdf-pipe <output.pdf> [portrait|landscape]}"
+    local orientation="${2:-portrait}"
+    case "$orientation" in
+        portrait|landscape) ;;
+        *) echo "html2pdf-pipe: orientation must be portrait or landscape, got: $orientation" >&2; return 1 ;;
+    esac
+    local browser
+    if command -v google-chrome >/dev/null 2>&1; then
+        browser=google-chrome
+    elif command -v chromium >/dev/null 2>&1; then
+        browser=chromium
+    else
+        echo "html2pdf-pipe: neither google-chrome nor chromium found" >&2; return 1
+    fi
+    local tmpdir
+    tmpdir=$(mktemp -d) || { echo "html2pdf-pipe: mktemp failed" >&2; return 1; }
+    local source="$tmpdir/input.html"
+    cat > "$source" || { echo "html2pdf-pipe: failed to read stdin" >&2; rm -rf "$tmpdir"; return 1; }
+    if [ "$orientation" = "landscape" ]; then
+        if grep -qi '<head' "$source"; then
+            sed -i -E 's|(<head[^>]*>)|\1<style>@page{size:landscape}</style>|' "$source"
+        else
+            { printf '<style>@page{size:landscape}</style>'; cat "$source"; } > "$tmpdir/landscape.html" && mv "$tmpdir/landscape.html" "$source"
+        fi
+    fi
+    "$browser" --headless=new --disable-gpu \
+        --no-pdf-header-footer \
+        --print-to-pdf="$output" \
+        "file://$source" >/dev/null 2>&1
+    local rc=$?
+    rm -rf "$tmpdir"
+    if [ $rc -eq 0 ]; then
+        echo "wrote $output"
+    else
+        echo "html2pdf-pipe: $browser failed" >&2
+        return 1
+    fi
+}
