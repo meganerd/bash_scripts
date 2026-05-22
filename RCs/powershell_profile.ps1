@@ -78,3 +78,28 @@ Function Copy-HistoryCommand {
     } #end
 
 } #close function
+
+function winfind {
+    <#
+    .SYNOPSIS
+        GNU find equivalent for Windows — recursively list files matching a wildcard pattern.
+    .PARAMETER Path
+        Starting directory (default: current directory).
+    .PARAMETER Name
+        Wildcard pattern (`*`, `?`) applied to filenames (default: `*` = all files).
+    .EXAMPLE
+        winfind . *.ps1
+        winfind .\ *filestring*.ps1
+        winfind C:\Windows\System32 *.dll
+    #>
+    param(
+        [Parameter(Position = 0)]
+        [string]$Path = ".",
+        [Parameter(Position = 1)]
+        [string]$Name = "*"
+    )
+    Get-ChildItem -Path $Path -Recurse -Force -ErrorAction SilentlyContinue -Filter $Name |
+        Select-Object -ExpandProperty FullName
+}
+
+New-Alias -Force winf winfind
