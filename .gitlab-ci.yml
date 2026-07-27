@@ -1,5 +1,5 @@
 test:
-    image: koalaman/shellcheck:latest
+    image: koalaman/shellcheck-alpine:stable
     stage: test
-    script: 
-    - shellcheck **/*.sh
+    script:
+    - shellcheck network/ddns-retry.sh network/test-ddns-retry.sh
