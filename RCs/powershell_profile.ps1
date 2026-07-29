@@ -1,8 +1,16 @@
 # PowerShell Profile (Windows PowerShell 5.x + PS7)
+# Canonical copy -- edit HERE, then install to both $PROFILE locations.
+#
 # Install: Copy this file to $PROFILE
 #   PS5: C:\Users\<you>\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1
 #   PS7: C:\Users\<you>\Documents\PowerShell\Microsoft.PowerShell_profile.ps1
 #   cp ~/src/bash_scripts/RCs/powershell_profile.ps1 $PROFILE
+#
+# Keep this file pure ASCII (no em-dashes, smart quotes, box characters).
+# It is saved without a BOM, and a no-BOM file is decoded as the ANSI codepage by
+# PS 5.1 but as UTF-8 by PS7 -- so any non-ASCII byte round-trips into mojibake on
+# one of the two. That already happened once: the em-dash in winfind's help came
+# back as "a-hat euro" in the PS7 copy. ASCII-only sidesteps it without needing a BOM.
 
 function windush {
       param([string]$Path = ".")
@@ -31,6 +39,8 @@ function windush {
   }
 
 New-Alias -Force gvim "C:\Program Files\Vim\vim92\gvim.exe"
+
+New-Alias -Force vim "C:\Program Files\Vim\vim92\vim.exe"
 
 function fc { ch -WhatIf @args }
 
@@ -82,7 +92,7 @@ Function Copy-HistoryCommand {
 function winfind {
     <#
     .SYNOPSIS
-        GNU find equivalent for Windows — recursively list files matching a wildcard pattern.
+        GNU find equivalent for Windows - recursively list files matching a wildcard pattern.
     .PARAMETER Path
         Starting directory (default: current directory).
     .PARAMETER Name
@@ -103,3 +113,71 @@ function winfind {
 }
 
 New-Alias -Force winf winfind
+
+function Set-ClipboardFromFile {
+    <#
+    .SYNOPSIS
+        Copy a file's TEXT contents to the clipboard. Portable across PS 5.1 and PS7.
+    .DESCRIPTION
+        Set-Clipboard -Path / -LiteralPath / -AsHtml exist ONLY in Windows PowerShell 5.1.
+        They were dropped when the cmdlet went cross-platform, so on PS7 you get:
+            Set-Clipboard: A parameter cannot be found that matches parameter name 'Path'.
+        -Value is the only parameter common to both, so this reads the file and pipes text.
+
+        Note: 5.1's -Path may place the FILE on the clipboard (an Explorer-pasteable file
+        drop) rather than its text. This function always does TEXT. For a file drop use
+        [System.Windows.Forms.Clipboard]::SetFileDropList() -- Windows-only, needs STA.
+    .PARAMETER LiteralPath
+        File(s) to read. Aliased to -Path so `-Path <file>` muscle memory still works.
+        Accepts pipeline input, including Get-ChildItem output (via -FullName alias).
+    .PARAMETER Append
+        Add to the existing clipboard contents instead of replacing them.
+    .PARAMETER Encoding
+        Optional passthrough to Get-Content -Encoding. Worth setting explicitly for
+        non-ASCII files with no BOM: 5.1 defaults to the ANSI codepage, PS7 to UTF-8,
+        so the same file decodes differently on each. Not validated here on purpose --
+        the accepted value names differ between versions.
+    .EXAMPLE
+        Set-ClipboardFromFile $env:TEMP\mot-11924-readonly.txt
+    .EXAMPLE
+        clipfile -Path .\notes.md -Encoding UTF8
+    .EXAMPLE
+        Get-ChildItem *.ps1 | clipfile
+    .EXAMPLE
+        clipfile .\secrets.txt -WhatIf   # show what would be copied, touch nothing
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName)]
+        [Alias('PSPath', 'Path', 'FullName')]
+        [string[]]$LiteralPath,
+
+        [switch]$Append,
+
+        [string]$Encoding
+    )
+    begin { $chunks = [System.Collections.Generic.List[string]]::new() }
+    process {
+        foreach ($p in $LiteralPath) {
+            $gc = @{ LiteralPath = $p; Raw = $true; ErrorAction = 'Stop' }
+            if ($PSBoundParameters.ContainsKey('Encoding')) { $gc['Encoding'] = $Encoding }
+            # Get-Content -Raw returns $null (not '') for a 0-byte file, in both versions.
+            $chunks.Add([string](Get-Content @gc))
+        }
+    }
+    end {
+        if ($chunks.Count -eq 0) { return }
+        $text = $chunks -join [Environment]::NewLine
+        # Version split, verified on 5.1.26100 and 7.6.3:
+        #   Set-Clipboard -Value ''    -> 5.1 THROWS ArgumentNullException ('text'); PS7 fine.
+        #   Set-Clipboard -Value $null -> both fine (clears the clipboard).
+        # So an empty result must be sent as $null, never as ''.
+        if ([string]::IsNullOrEmpty($text)) {
+            if (-not $Append) { Set-Clipboard -Value $null }   # nothing to append
+        } else {
+            Set-Clipboard -Value $text -Append:$Append
+        }
+    }
+}
+
+New-Alias -Force clipfile Set-ClipboardFromFile
