@@ -42,8 +42,6 @@ New-Alias -Force gvim "C:\Program Files\Vim\vim92\gvim.exe"
 
 New-Alias -Force vim "C:\Program Files\Vim\vim92\vim.exe"
 
-function fc { ch -WhatIf @args }
-
 function lsl {
     param([string]$Path = '.')
     Get-ChildItem -Force $Path | ForEach-Object {
@@ -52,6 +50,25 @@ function lsl {
         } else {
             "{0}  {1}" -f $_.Mode, $_.Name
         }
+    }
+}
+
+function fc-win {
+    [CmdletBinding()]
+    param([int]$ID = ((Get-History).Count))   # default = most recent command
+
+    $cmd = (Get-History -Id $ID -ErrorAction Stop).CommandLine
+    $tmp = Join-Path $env:TEMP ("fc_{0}.ps1" -f [guid]::NewGuid())
+    Set-Content -LiteralPath $tmp -Value $cmd -Encoding UTF8
+
+    $editor = if ($env:EDITOR) { $env:EDITOR } else { 'notepad' }
+    Start-Process -FilePath $editor -ArgumentList "`"$tmp`"" -Wait   # blocks until editor closes
+
+    $edited = (Get-Content -LiteralPath $tmp -Raw).Trim()
+    Remove-Item -LiteralPath $tmp -Force
+    if ($edited) {
+        Write-Host "> $edited" -ForegroundColor DarkGray
+        Invoke-Expression $edited                                    # run the buffer
     }
 }
 
@@ -124,9 +141,10 @@ function Set-ClipboardFromFile {
             Set-Clipboard: A parameter cannot be found that matches parameter name 'Path'.
         -Value is the only parameter common to both, so this reads the file and pipes text.
 
-        Note: 5.1's -Path may place the FILE on the clipboard (an Explorer-pasteable file
-        drop) rather than its text. This function always does TEXT. For a file drop use
-        [System.Windows.Forms.Clipboard]::SetFileDropList() -- Windows-only, needs STA.
+        Note: 5.1's -Path places the FILE on the clipboard (an Explorer-pasteable file
+        drop) rather than its text. This function always does TEXT. For the file-drop
+        behaviour use Set-ClipboardFileDrop / clipdrop below -- that is what you want for
+        binaries (.7z, .zip, .msi), where copying the text is meaningless.
     .PARAMETER LiteralPath
         File(s) to read. Aliased to -Path so `-Path <file>` muscle memory still works.
         Accepts pipeline input, including Get-ChildItem output (via -FullName alias).
@@ -181,3 +199,106 @@ function Set-ClipboardFromFile {
 }
 
 New-Alias -Force clipfile Set-ClipboardFromFile
+
+function Set-ClipboardFileDrop {
+    <#
+    .SYNOPSIS
+        Copy FILE(S) to the clipboard as an Explorer-pasteable file drop. PS 5.1 and PS7.
+    .DESCRIPTION
+        This is what Windows PowerShell 5.1's `Set-Clipboard -Path` does: the file itself
+        goes on the clipboard (CF_HDROP), so Ctrl+V in Explorer, Outlook, Teams, etc.
+        pastes the file. -Path was dropped when Set-Clipboard went cross-platform, so PS7
+        has no built-in equivalent -- and clipfile (above) copies a file's TEXT, which is
+        not the same thing and is useless for binaries.
+
+        Verified equivalent to 5.1's `Set-Clipboard -Path`: both leave the clipboard
+        advertising the same formats -- FileDrop, FileNameW, FileName -- checked on
+        5.1.26100.8875 and 7.6.3.
+
+        Implementation is [System.Windows.Forms.Clipboard]::SetFileDropList(): Windows
+        only, and it requires an STA thread. pwsh 7.6 starts STA, but earlier 7.x defaulted
+        to MTA and `pwsh -MTA` still exists, so when the current thread is MTA the call is
+        marshalled onto a temporary STA runspace. SetFileDropList flushes to the OLE
+        clipboard (SetDataObject copy:$true), so the data outlives that runspace -- and
+        even the process that set it.
+    .PARAMETER LiteralPath
+        File(s) or folder(s) to place on the clipboard. Aliased to -Path so `-Path <file>`
+        muscle memory still works, but there is NO wildcard expansion (same as clipfile) --
+        pipe Get-ChildItem for that. Relative paths are resolved to full paths, which
+        Explorer requires. Missing paths are a non-terminating error and are skipped.
+    .PARAMETER Append
+        Add to the file drop list already on the clipboard instead of replacing it.
+        Duplicate paths are skipped.
+    .PARAMETER PassThru
+        Emit the resulting file drop list, read back from the clipboard.
+    .EXAMPLE
+        clipdrop C:\builds\20260811-152315-develop\jumpbox-windows.7z
+        # then Ctrl+V into an Explorer window, or into an email
+    .EXAMPLE
+        Get-ChildItem *.7z | clipdrop -PassThru
+    .EXAMPLE
+        clipdrop .\extra.log -Append
+    .EXAMPLE
+        clipdrop .\big.iso -WhatIf   # show the target, leave the clipboard alone
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName)]
+        [Alias('PSPath', 'Path', 'FullName')]
+        [string[]]$LiteralPath,
+
+        [switch]$Append,
+
+        [switch]$PassThru
+    )
+    begin { $files = [System.Collections.Generic.List[string]]::new() }
+    process {
+        foreach ($p in $LiteralPath) {
+            # Explorer needs absolute paths; this also copes with PSDrive-relative input.
+            $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($p)
+            if (-not (Test-Path -LiteralPath $full)) {
+                Write-Error "Not found: $full"
+                continue
+            }
+            $files.Add($full)
+        }
+    }
+    end {
+        if ($files.Count -eq 0) { return }
+        $target = if ($files.Count -eq 1) { $files[0] } else { "$($files.Count) items" }
+        if (-not $PSCmdlet.ShouldProcess($target, 'Copy to clipboard as file drop')) { return }
+
+        # Runs either inline (already STA) or inside the STA runspace below, so it must be
+        # self-contained -- hence the Add-Type here rather than at profile load.
+        $worker = {
+            param([string[]]$Paths, [bool]$DoAppend)
+            Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+            $sc = [System.Collections.Specialized.StringCollection]::new()
+            if ($DoAppend) {
+                foreach ($e in [System.Windows.Forms.Clipboard]::GetFileDropList()) { $null = $sc.Add($e) }
+            }
+            foreach ($p in $Paths) { if (-not $sc.Contains($p)) { $null = $sc.Add($p) } }
+            [System.Windows.Forms.Clipboard]::SetFileDropList($sc)
+            , @([System.Windows.Forms.Clipboard]::GetFileDropList())
+        }
+
+        if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -eq 'STA') {
+            $result = & $worker $files.ToArray() $Append.IsPresent
+        } else {
+            $rs = [runspacefactory]::CreateRunspace()
+            $rs.ApartmentState = 'STA'
+            $rs.ThreadOptions = 'ReuseThread'
+            $rs.Open()
+            $ps = [powershell]::Create()
+            try {
+                $ps.Runspace = $rs
+                $null = $ps.AddScript($worker.ToString()).AddArgument($files.ToArray()).AddArgument($Append.IsPresent)
+                $result = $ps.Invoke()
+                if ($ps.Streams.Error.Count) { throw $ps.Streams.Error[0] }
+            } finally { $ps.Dispose(); $rs.Dispose() }
+        }
+        if ($PassThru) { $result }
+    }
+}
+
+New-Alias -Force clipdrop Set-ClipboardFileDrop
