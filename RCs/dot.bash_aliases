@@ -17,20 +17,21 @@ fi
 unset _md2pdf_deps
 # ─────────────────────────────────────────────────────────────────────
 
-# Create /tmp folder structure if it does not exist
-# Create /tmp folder structure if it does not exist
-if [ ! -d "/tmp/${USER}/Downloads" ]; then
-    mkdir -p "/tmp/${USER}/Downloads"
-fi
 
-# Check for prerequisites and perform bindfs mount if possible
-if [ -f "$(which bindfs)" ] && \
-   [ -d "${HOME}" ] && \
-   [ -d "/tmp/${USER}" ] && \
-   [ -z "$(ls -A ${HOME}/tmp 2>/dev/null)" ]; then
-    bindfs "/tmp/${USER}" "${HOME}/tmp"
-else
-    echo "Cannot bind mount: bindfs not found, or required directories missing/empty."
+# bindfs mount: only runs if $HOME/tmp exists (opt-in gate)
+if [ -d "${HOME}/tmp" ]; then
+    # Lazily kill any stale FUSE mount first
+    fusermount -uz "${HOME}/tmp" 2>/dev/null || true
+
+    # Ensure source directory exists, then mount if destination is empty
+    if ! command -v bindfs >/dev/null 2>&1; then
+        echo "bindfs not found — install it (apt install bindfs)"
+    else
+        mkdir -p "/tmp/${USER}/Downloads"
+        if [ -z "$(ls -A "${HOME}/tmp" 2>/dev/null)" ]; then
+            bindfs "/tmp/${USER}" "${HOME}/tmp"
+        fi
+    fi
 fi
 
 
@@ -111,6 +112,12 @@ alias wget-recursive="wget -r --level=5 -nH -N -np"
 alias ggl="git log --all --decorate --oneline --graph"
 alias snyktest="snyk container test --severity-threshold=high"
 alias trimws="sed -i 's/[[:space:]]*$//'"
+
+# media inspection
+alias mediainspect='ffprobe -hide_banner -v error -show_entries format=filename,format_long_name,duration,size,bit_rate:stream=index,codec_name,codec_long_name,codec_type,profile,width,height,bit_rate,sample_rate,channels,channel_layout,pix_fmt,avg_frame_rate,r_frame_rate -of default=noprint_wrappers=1'
+
+# youtube audio only -> wav (usage: yt-dlp_audio <url>)
+alias yt-dlp_audio='yt-dlp -f "bestaudio" -x --audio-format wav --audio-quality 0 -o "yt-%(title)s.%(ext)s"'
 
 manopt() {
 local cmd=$1 opt=$2
@@ -328,3 +335,23 @@ md2pdf() {
 md2pdf-bgdark() {
     md2pdf --dark "$@"
 }
+
+# ── bonus-room-cam: RTSP viewer with SSH tunnel relay ─────────────────
+# SSH relay prevents video freezing over flaky wifi. Connects to Thingino
+# firmware camera via prudynt on port 554, tunneled through SSH for a
+# stable TCP transport. Cleans up the tunnel when mpv exits.
+bonus_room_cam() {
+    # Kill stale tunnel on port 8554 from any previous run
+    fuser -k 8554/tcp 2>/dev/null
+    if ! ssh -f -N -L 8554:localhost:554 -o ExitOnForwardFailure=yes bonus-room-cam 2>/dev/null; then
+        echo "bonus-room-cam: tunnel relay failed — camera unreachable?" >&2
+        return 1
+    fi
+    # shellcheck disable=SC2064
+    trap "fuser -k 8554/tcp 2>/dev/null" EXIT
+    mpv --rtsp-transport=tcp --no-audio "rtsp://thingino:thingino@127.0.0.1:8554/ch0"
+}
+alias bonus-room-cam=bonus_room_cam
+
+# Silence oh-my-openagent PostHog telemetry (kills PostHogFetchNetworkError stack traces in opencode)
+export OMO_DISABLE_POSTHOG=1
