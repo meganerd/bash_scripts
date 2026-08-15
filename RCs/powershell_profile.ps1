@@ -1,10 +1,13 @@
 # PowerShell Profile (Windows PowerShell 5.x + PS7)
-# Canonical copy -- edit HERE, then install to both $PROFILE locations.
+# Canonical copy -- edit HERE. No copying needed: both $PROFILE files are stubs that
+# dot-source this file, so a change here is live in the next shell of either version.
 #
-# Install: Copy this file to $PROFILE
+# Install (one time per machine): copy powershell_profile_stub.ps1 -- alongside this
+# file, and the only thing that belongs in $PROFILE -- to BOTH locations:
 #   PS5: C:\Users\<you>\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1
 #   PS7: C:\Users\<you>\Documents\PowerShell\Microsoft.PowerShell_profile.ps1
-#   cp ~/src/bash_scripts/RCs/powershell_profile.ps1 $PROFILE
+#
+#   cp ~/src/bash_scripts/RCs/powershell_profile_stub.ps1 $PROFILE
 #
 # Keep this file pure ASCII (no em-dashes, smart quotes, box characters).
 # It is saved without a BOM, and a no-BOM file is decoded as the ANSI codepage by
