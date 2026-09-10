@@ -188,11 +188,21 @@ function Add-PointingCandidate {
         Get-PointingKind -Name $name -PointingType $PointingType
     }
     $score = 0
-    if ($DetectedBy -match 'Precision Touchpad HID usage') { $score += 100 }
+    if ($DetectedBy -match 'Precision Touchpad HID usage') { $score += 200 }
     if ($DetectedBy -match 'Windows pointing-device inventory') { $score += 50 }
     if ($DetectedBy -match 'PnP Mouse class') { $score += 30 }
-    if ($DetectedBy -match 'PnP trackpad name') { $score += 20 }
+    if ($DetectedBy -match 'PnP trackpad name') { $score += 100 }
     if ([string]$PnpDevice.Status -eq 'OK') { $score += 5 }
+    $nameSpecificity = if ($name -match '(?i)^\s*(HID-compliant mouse|PS/2 compatible mouse|Microsoft PS/2 mouse|mouse|unnamed pointing device)\s*$') {
+        0
+    }
+    else {
+        1
+    }
+    $metadataScore = @($Manufacturer, $BusDescription, $Location) |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Measure-Object |
+        Select-Object -ExpandProperty Count
 
     if ($Candidates.ContainsKey($key)) {
         if ($Candidates[$key].DetectedBy -notmatch [regex]::Escape($DetectedBy)) {
@@ -215,6 +225,8 @@ function Add-PointingCandidate {
         BusDescription = $BusDescription
         Location = $Location
         Score = $score
+        NameSpecificity = $nameSpecificity
+        MetadataScore = $metadataScore
         RelatedEntries = 0
     }
 }
@@ -269,10 +281,16 @@ function Get-PointingDevices {
                 foreach ($property in $identityProperties) {
                     $deviceProperties[[string]$property.KeyName] = $property.Data
                 }
-                $identityText = [string]::Join(' ', @(
-                    $deviceProperties['DEVPKEY_Device_HardwareIds']
-                    $deviceProperties['DEVPKEY_Device_CompatibleIds']
-                ))
+                $identityValues = @()
+                foreach ($identityKey in @(
+                        'DEVPKEY_Device_HardwareIds',
+                        'DEVPKEY_Device_CompatibleIds'
+                    )) {
+                    if ($null -ne $deviceProperties[$identityKey]) {
+                        $identityValues += @($deviceProperties[$identityKey])
+                    }
+                }
+                $identityText = $identityValues -join ' '
             }
             catch {
                 $identityText = ''
@@ -319,7 +337,35 @@ function Get-PointingDevices {
     })
 
     $physicalDevices = foreach ($group in $groupedCandidates) {
-        $bestMatch = $group.Group | Sort-Object Score -Descending | Select-Object -First 1
+        $bestMatch = $group.Group | Sort-Object `
+            @{ Expression = 'Score'; Descending = $true }, `
+            @{ Expression = 'NameSpecificity'; Descending = $true }, `
+            @{ Expression = 'MetadataScore'; Descending = $true }, `
+            Name, InstanceId | Select-Object -First 1
+        $bestLabel = $group.Group | Sort-Object `
+            @{ Expression = 'NameSpecificity'; Descending = $true }, `
+            @{ Expression = 'MetadataScore'; Descending = $true }, `
+            @{ Expression = 'Score'; Descending = $true }, `
+            Name, InstanceId | Select-Object -First 1
+
+        if ($bestLabel.NameSpecificity -gt $bestMatch.NameSpecificity) {
+            $bestMatch.Name = $bestLabel.Name
+        }
+        foreach ($metadataName in @('Manufacturer', 'BusDescription', 'Location')) {
+            if ([string]::IsNullOrWhiteSpace($bestMatch.$metadataName)) {
+                $metadataValue = $group.Group | ForEach-Object {
+                    if (-not [string]::IsNullOrWhiteSpace($_.$metadataName)) {
+                        $_
+                    }
+                } | Sort-Object `
+                    @{ Expression = 'Score'; Descending = $true }, `
+                    @{ Expression = 'NameSpecificity'; Descending = $true }, `
+                    InstanceId | Select-Object -First 1
+                if ($null -ne $metadataValue) {
+                    $bestMatch.$metadataName = $metadataValue.$metadataName
+                }
+            }
+        }
         $bestMatch.RelatedEntries = $group.Count - 1
         $bestMatch
     }
