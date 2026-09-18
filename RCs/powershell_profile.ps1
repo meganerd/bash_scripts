@@ -41,9 +41,45 @@ function windush {
       $data
   }
 
-New-Alias -Force gvim "C:\Program Files\Vim\vim92\gvim.exe"
+function Resolve-VimExe {
+    <#
+    .SYNOPSIS
+        Locate vim.exe or gvim.exe without hardcoding a version.
+    .DESCRIPTION
+        Vim installs into a versioned subdir (vim82, vim91, vim92 ...) that moves on
+        every upgrade, and some installs are flat with the exe directly in the Vim
+        directory. Hardcoding one of those paths silently breaks the alias on
+        upgrade, so resolve it at profile load: newest versioned subdir, then the
+        flat layout, then whatever is on PATH.
+    #>
+    [CmdletBinding()]
+    param([ValidateSet('vim', 'gvim')][string]$Name = 'vim')
 
-New-Alias -Force vim "C:\Program Files\Vim\vim92\vim.exe"
+    $exe = "$Name.exe"
+    foreach ($root in "$env:ProgramFiles\Vim", "${env:ProgramFiles(x86)}\Vim") {
+        if (-not (Test-Path -LiteralPath $root)) { continue }
+        # -Filter only understands * and ?, so match the vimNN shape afterwards, and
+        # sort on the number so vim100 outranks vim92 (lexically it would not).
+        $versioned = Get-ChildItem -LiteralPath $root -Directory -Filter 'vim*' -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^vim\d+$' } |
+            Sort-Object { [int]($_.Name -replace '\D', '') } -Descending |
+            ForEach-Object { Join-Path $_.FullName $exe } |
+            Where-Object { Test-Path -LiteralPath $_ } |
+            Select-Object -First 1
+        if ($versioned) { return $versioned }
+
+        $flat = Join-Path $root $exe
+        if (Test-Path -LiteralPath $flat) { return $flat }
+    }
+    Get-Command $exe -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1 -ExpandProperty Source
+}
+
+$gvimExe = Resolve-VimExe gvim
+if ($gvimExe) { New-Alias -Force gvim $gvimExe }
+
+$vimExe = Resolve-VimExe vim
+if ($vimExe) { New-Alias -Force vim $vimExe }
 
 function lsl {
     param([string]$Path = '.')
@@ -305,3 +341,46 @@ function Set-ClipboardFileDrop {
 }
 
 New-Alias -Force clipdrop Set-ClipboardFileDrop
+
+function Invoke-VimCommand {
+    <#
+    .SYNOPSIS
+       Writes a PowerShell command in Vim and executes it immediately on exit.
+    #>
+    # Not GetTempFileName(): that creates a .tmp file on disk, and appending ".ps1"
+    # then points at a path that does not exist -- leaking the .tmp on every call.
+    $tempFile = Join-Path $env:TEMP ("ec_{0}.ps1" -f [guid]::NewGuid())
+    try {
+        # Start-Process resolves -FilePath against PATH, not the PowerShell alias
+        # table, so the `vim` alias has to be dereferenced to an exe. Honouring the
+        # alias first means retargeting it also retargets this function; Test-Path
+        # guards against a stale target before falling back to a fresh lookup.
+        $exe = $null
+        $vim = Get-Command vim -ErrorAction SilentlyContinue
+        if ($vim) {
+            $cand = if ($vim.CommandType -eq 'Alias') { $vim.Definition } else { $vim.Source }
+            if ($cand -and (Test-Path -LiteralPath $cand)) { $exe = $cand }
+        }
+        if (-not $exe) { $exe = Resolve-VimExe vim }
+        if (-not $exe) { throw "vim.exe not found: install Vim or add vim.exe to PATH." }
+
+        # Pre-create the file so a bare :q (vim never writes) is not an error below.
+        New-Item -ItemType File -Path $tempFile | Out-Null   # New-Item has no -LiteralPath
+
+        # Launch Vim and wait for it to close
+        Start-Process -FilePath $exe -ArgumentList "`"$tempFile`"" -NoNewWindow -Wait
+
+        # If the file contains text, execute it
+        $edited = Get-Content -LiteralPath $tempFile -Raw
+        if ($edited -and $edited.Trim()) {
+            Write-Host "> $($edited.Trim())" -ForegroundColor DarkGray
+            Invoke-Expression $edited
+        }
+    }
+    finally {
+        # Clean up the file afterward
+        if (Test-Path -LiteralPath $tempFile) { Remove-Item -LiteralPath $tempFile -Force }
+    }
+}
+# Create a short alias for convenience
+Set-Alias -Name ec -Value Invoke-VimCommand
