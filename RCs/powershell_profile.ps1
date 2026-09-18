@@ -346,7 +346,26 @@ function Invoke-VimCommand {
     <#
     .SYNOPSIS
        Writes a PowerShell command in Vim and executes it immediately on exit.
+    .PARAMETER Clipboard
+        Also copy the command's output to the clipboard, the way piping to
+        pbcopy_windows would: clipboard and pipeline both get it.
+    .PARAMETER LogPath
+        Also write the command's output to this file. The console still gets it
+        too, like tee. Relative paths resolve against the current directory.
+    .PARAMETER Append
+        Append to LogPath instead of overwriting it.
     #>
+    [CmdletBinding()]
+    param(
+        [switch]$Clipboard,
+
+        [Parameter(Position = 0)]
+        [ValidateNotNullOrEmpty()]
+        [string]$LogPath,
+
+        [switch]$Append
+    )
+
     # Not GetTempFileName(): that creates a .tmp file on disk, and appending ".ps1"
     # then points at a path that does not exist -- leaking the .tmp on every call.
     $tempFile = Join-Path $env:TEMP ("ec_{0}.ps1" -f [guid]::NewGuid())
@@ -374,7 +393,53 @@ function Invoke-VimCommand {
         $edited = Get-Content -LiteralPath $tempFile -Raw
         if ($edited -and $edited.Trim()) {
             Write-Host "> $($edited.Trim())" -ForegroundColor DarkGray
-            Invoke-Expression $edited
+            if (-not ($Clipboard -or $LogPath)) {
+                Invoke-Expression $edited
+                return
+            }
+            # Out-String renders objects the way they would look on screen, so a
+            # table or a Get-Process listing is captured readable rather than as
+            # type names. Buffering is what makes capture possible at all, so the
+            # output arrives once the command finishes rather than streaming.
+            #
+            # -Width matters: left at the default, table output is truncated to the
+            # console width and the trailing columns are replaced with an ellipsis,
+            # so a wide Format-Table would be silently mangled in the log. 4096 is
+            # a ceiling, not padding -- short output stays short.
+            $out = (Invoke-Expression $edited | Out-String -Width 4096).TrimEnd()
+
+            # Guard the empty case in both directions: piping '' to Set-Clipboard
+            # wipes whatever was there, and writing it would truncate an existing
+            # log -- neither is a reasonable answer to "the command said nothing".
+            if (-not $out) {
+                Write-Host "(no output -- clipboard and log left alone)" -ForegroundColor DarkGray
+                return
+            }
+
+            if ($Clipboard) { $out | Set-Clipboard }
+
+            if ($LogPath) {
+                # Resolve first: the .NET calls below do not share PowerShell's
+                # notion of the current directory, so a relative path would land
+                # somewhere surprising.
+                $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($LogPath)
+                $parent = Split-Path -Parent $full
+                if ($parent -and -not (Test-Path -LiteralPath $parent)) {
+                    throw "Log directory does not exist: $parent"
+                }
+                # Explicit no-BOM UTF8 encoder rather than Set-Content -Encoding
+                # UTF8, which emits a BOM on PS 5.1 but not on PS7, and rather than
+                # Tee-Object, which takes no -Encoding at all on 5.1.
+                $utf8 = New-Object System.Text.UTF8Encoding($false)
+                $text = $out + [Environment]::NewLine
+                if ($Append) {
+                    [System.IO.File]::AppendAllText($full, $text, $utf8)
+                } else {
+                    [System.IO.File]::WriteAllText($full, $text, $utf8)
+                }
+            }
+
+            $out          # pass through, as pbcopy_windows does
         }
     }
     finally {
@@ -382,5 +447,38 @@ function Invoke-VimCommand {
         if (Test-Path -LiteralPath $tempFile) { Remove-Item -LiteralPath $tempFile -Force }
     }
 }
-# Create a short alias for convenience
+
+function Invoke-VimCommandToClipboard {
+    <#
+    .SYNOPSIS
+        As Invoke-VimCommand, but the output also goes to the clipboard.
+    #>
+    [CmdletBinding()]
+    param()
+    Invoke-VimCommand -Clipboard
+}
+
+function Invoke-VimCommandToFile {
+    <#
+    .SYNOPSIS
+        As Invoke-VimCommand, but the output is also logged to a file.
+    .EXAMPLE
+        ec-file .\run.log
+    .EXAMPLE
+        ec-file .\run.log -Append
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Path,
+
+        [switch]$Append
+    )
+    Invoke-VimCommand -LogPath $Path -Append:$Append
+}
+
+# Create short aliases for convenience
 Set-Alias -Name ec -Value Invoke-VimCommand
+Set-Alias -Name ec-pbcopy -Value Invoke-VimCommandToClipboard
+Set-Alias -Name ec-file -Value Invoke-VimCommandToFile
