@@ -328,3 +328,20 @@ md2pdf() {
 md2pdf-bgdark() {
     md2pdf --dark "$@"
 }
+
+# ── bonus-room-cam: RTSP viewer with SSH tunnel relay ─────────────────
+# SSH relay prevents video freezing over flaky wifi. Connects to Thingino
+# firmware camera via prudynt on port 554, tunneled through SSH for a
+# stable TCP transport. Cleans up the tunnel when mpv exits.
+bonus_room_cam() {
+    # Kill stale tunnel on port 8554 from any previous run
+    fuser -k 8554/tcp 2>/dev/null
+    if ! ssh -f -N -L 8554:localhost:554 -o ExitOnForwardFailure=yes bonus-room-cam 2>/dev/null; then
+        echo "bonus-room-cam: tunnel relay failed — camera unreachable?" >&2
+        return 1
+    fi
+    # shellcheck disable=SC2064
+    trap "fuser -k 8554/tcp 2>/dev/null" EXIT
+    mpv --rtsp-transport=tcp --no-audio "rtsp://thingino:thingino@127.0.0.1:8554/ch0"
+}
+alias bonus-room-cam=bonus_room_cam
